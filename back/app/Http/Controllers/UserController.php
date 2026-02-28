@@ -3,40 +3,37 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\LoginRequest;
+use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
-use App\Models\Audit;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
     public function login(LoginRequest $request): JsonResponse
     {
         $credentials = $request->validated();
+        $login = $credentials['login'] ?? $credentials['username'];
 
         $user = User::query()
-            ->where('username', $credentials['username'])
+            ->where(function ($query) use ($login): void {
+                $query->where('username', $login)
+                    ->orWhere('email', $login);
+            })
             ->where('active', true)
             ->first();
 
         if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             return response()->json([
-                'message' => 'Usuario o contraseña incorrectos.',
+                'message' => 'Usuario o contrasena incorrectos.',
             ], 401);
         }
 
         $token = $user->createToken('auth_token')->plainTextToken;
-
-        $this->storeAudit(
-            action: 'login',
-            request: $request,
-            userId: $user->id,
-            auditableType: User::class,
-            auditableId: $user->id,
-        );
 
         return response()->json([
             'token' => $token,
@@ -44,20 +41,43 @@ class UserController extends Controller
         ]);
     }
 
+    public function register(RegisterRequest $request): JsonResponse
+    {
+//        return response()->json([
+//            'message' => 'Registro exitoso.',
+//        ], 201);
+        $data = $request->validated();
+        $data['role'] = 'Usuario';
+        $data['active'] = true;
+        $data['avatar'] = 'avatar.png';
+
+        if ($request->hasFile('avatar')) {
+            $file = $request->file('avatar');
+            $filename = now()->format('YmdHis').'_'.Str::random(8).'.'.$file->getClientOriginalExtension();
+            $destination = public_path('images');
+            if (! is_dir($destination)) {
+                mkdir($destination, 0755, true);
+            }
+            $file->move($destination, $filename);
+            $data['avatar'] = $filename;
+        }
+
+        $user = User::query()->create($data);
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Cuenta creada correctamente.',
+            'token' => $token,
+            'user' => $user,
+        ], 201);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $request->user()?->currentAccessToken()?->delete();
 
-        $this->storeAudit(
-            action: 'logout',
-            request: $request,
-            userId: $request->user()?->id,
-            auditableType: User::class,
-            auditableId: $request->user()?->id,
-        );
-
         return response()->json([
-            'message' => 'Sesión cerrada correctamente.',
+            'message' => 'Sesion cerrada correctamente.',
         ]);
     }
 
@@ -91,78 +111,27 @@ class UserController extends Controller
 
         $user = User::query()->create($data);
 
-        $this->storeAudit(
-            action: 'users.create',
-            request: $request,
-            userId: $request->user()?->id,
-            auditableType: User::class,
-            auditableId: $user->id,
-            newValues: $user->toArray(),
-        );
-
         return response()->json($user, 201);
     }
 
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
-        $oldValues = $user->toArray();
         $data = $request->validated();
         if (array_key_exists('avatar', $data) && empty($data['avatar'])) {
             $data['avatar'] = 'avatar.png';
         }
-        $user->update($data);
 
-        $this->storeAudit(
-            action: 'users.update',
-            request: $request,
-            userId: $request->user()?->id,
-            auditableType: User::class,
-            auditableId: $user->id,
-            oldValues: $oldValues,
-            newValues: $user->fresh()?->toArray() ?? [],
-        );
+        $user->update($data);
 
         return response()->json($user->fresh());
     }
 
     public function destroy(Request $request, User $user): JsonResponse
     {
-        $oldValues = $user->toArray();
         $user->delete();
-
-        $this->storeAudit(
-            action: 'users.delete',
-            request: $request,
-            userId: $request->user()?->id,
-            auditableType: User::class,
-            auditableId: $user->id,
-            oldValues: $oldValues,
-            newValues: ['deleted_at' => now()->toDateTimeString()],
-        );
 
         return response()->json([
             'message' => 'Usuario eliminado correctamente.',
-        ]);
-    }
-
-    private function storeAudit(
-        string $action,
-        Request $request,
-        ?int $userId = null,
-        ?string $auditableType = null,
-        ?int $auditableId = null,
-        ?array $oldValues = null,
-        ?array $newValues = null
-    ): void {
-        Audit::query()->create([
-            'user_id' => $userId,
-            'action' => $action,
-            'auditable_type' => $auditableType,
-            'auditable_id' => $auditableId,
-            'old_values' => $oldValues,
-            'new_values' => $newValues,
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
         ]);
     }
 }

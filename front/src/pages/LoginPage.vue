@@ -22,13 +22,13 @@
                 Accede al panel de administracion usando tus credenciales.
               </div>
 
-              <div class="q-mb-sm text-caption text-grey-7">Nombre de usuario</div>
+              <div class="q-mb-sm text-caption text-grey-7">Usuario o correo</div>
               <q-input
-                v-model="username"
+                v-model="loginValue"
                 outlined
                 dense
-                placeholder="Nombre de usuario"
-                :rules="[v => !!v || 'Ingrese su nombre de usuario']"
+                placeholder="Usuario o correo"
+                :rules="[v => !!v || 'Ingrese su usuario o correo']"
                 class="q-mb-md"
               >
                 <template #prepend><q-icon name="account_circle" size="18px" /></template>
@@ -70,6 +70,14 @@
                 :loading="loading"
                 type="submit"
               />
+              <q-btn
+                outline
+                color="deep-orange"
+                label="Register"
+                class="full-width q-mt-sm btnRegister"
+                no-caps
+                @click="$router.push('/register')"
+              />
             </q-card-section>
 
             <q-card-section class="q-pt-none text-center">
@@ -89,7 +97,7 @@ import { computed, getCurrentInstance, ref } from 'vue'
 
 const { proxy } = getCurrentInstance()
 
-const username = ref('')
+const loginValue = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const rememberMe = ref(false)
@@ -98,7 +106,7 @@ const year = computed(() => new Date().getFullYear())
 
 function login() {
   loading.value = true
-  proxy.$axios.post('/login', { username: username.value, password: password.value })
+  proxy.$axios.post('/login', { login: loginValue.value, password: password.value })
     .then(res => {
       const { user, token } = res.data
       proxy.$axios.defaults.headers.common.Authorization = `Bearer ${token}`
@@ -186,6 +194,10 @@ function login() {
   background-color: #fff !important;
   color: var(--q-primary) !important;
   outline: 1px solid var(--q-primary) !important;
+}
+
+.btnRegister {
+  border-width: 2px;
 }
 
 @media (max-width: 768px) {

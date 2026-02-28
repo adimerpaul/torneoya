@@ -9,11 +9,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use OwenIt\Auditing\Auditable;
+use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
 
-class User extends Authenticatable
+class User extends Authenticatable implements AuditableContract
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
+    use Auditable, HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -58,10 +59,5 @@ class User extends Authenticatable
     public function getAvatarAttribute(?string $value): string
     {
         return $value ?: 'avatar.png';
-    }
-
-    public function audits(): HasMany
-    {
-        return $this->hasMany(Audit::class);
     }
 }

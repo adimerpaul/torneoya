@@ -19,8 +19,8 @@
 
         <q-btn-dropdown flat unelevated no-caps dropdown-icon="expand_more">
           <template #label>
-            <q-avatar rounded>
-              <q-img :src="$url + '../images/' + $store.user.avatar" v-if="$store.user.avatar" />
+            <q-avatar rounded size="34px">
+              <q-img :src="avatarSrc" />
             </q-avatar>
             <div class="text-center q-ml-sm" style="line-height: 1">
               <div style="max-width: 130px; white-space: normal; overflow-wrap: break-word;">
@@ -109,6 +109,11 @@ export default {
     }
   },
   computed: {
+    avatarSrc() {
+      const user = this.$store && this.$store.user ? this.$store.user : {}
+      const avatar = user.avatar || 'avatar.png'
+      return this.$url + '../images/' + avatar
+    },
     linksList() {
       return [
         { title: 'Principal', icon: 'home', link: '/', perm: 'Principal', always: true },
