@@ -511,6 +511,175 @@ class CampeonatoController extends Controller
         return response()->json($out);
     }
 
+    private function rankingIncrement(array &$rows, $jugadorId, $jugadorNombre, $equipoId, $equipoNombre, string $field, int $value = 1): void
+    {
+        $jid = $jugadorId ? (int) $jugadorId : 0;
+        $eid = $equipoId ? (int) $equipoId : 0;
+        $jname = trim((string) ($jugadorNombre ?: 'Sin jugador'));
+        $ename = trim((string) ($equipoNombre ?: 'Sin equipo'));
+        $key = $jid . '|' . $eid . '|' . Str::lower($jname);
+
+        if (!isset($rows[$key])) {
+            $rows[$key] = [
+                'jugador_id' => $jid ?: null,
+                'jugador' => $jname,
+                'equipo_id' => $eid ?: null,
+                'equipo' => $ename,
+                'goles' => 0,
+                'faltas' => 0,
+                'amarillas' => 0,
+                'rojas' => 0,
+                'sustituciones' => 0,
+                'porteros' => 0,
+                'total' => 0,
+            ];
+        }
+
+        $rows[$key][$field] += $value;
+        $rows[$key]['total'] += $value;
+    }
+
+    public function rankingPublic(string $code)
+    {
+        $campeonato = Campeonato::where('codigo', strtoupper($code))->first();
+        if (!$campeonato) {
+            return response()->json(['message' => 'Codigo no encontrado'], 404);
+        }
+
+        $rows = [];
+
+        $goles = CampeonatoPartidoGol::query()
+            ->join('campeonato_partidos as p', 'p.id', '=', 'campeonato_partido_goles.campeonato_partido_id')
+            ->leftJoin('campeonato_jugadores as j', 'j.id', '=', 'campeonato_partido_goles.jugador_id')
+            ->leftJoin('campeonato_equipos as e', 'e.id', '=', 'campeonato_partido_goles.equipo_id')
+            ->where('p.campeonato_id', $campeonato->id)
+            ->select([
+                'campeonato_partido_goles.jugador_id',
+                'campeonato_partido_goles.equipo_id',
+                'j.nombre as jugador_nombre',
+                'e.nombre as equipo_nombre',
+            ])
+            ->get();
+        foreach ($goles as $r) {
+            $this->rankingIncrement($rows, $r->jugador_id, $r->jugador_nombre, $r->equipo_id, $r->equipo_nombre, 'goles');
+        }
+
+        $faltas = CampeonatoPartidoFalta::query()
+            ->join('campeonato_partidos as p', 'p.id', '=', 'campeonato_partido_faltas.campeonato_partido_id')
+            ->leftJoin('campeonato_jugadores as j', 'j.id', '=', 'campeonato_partido_faltas.jugador_id')
+            ->leftJoin('campeonato_equipos as e', 'e.id', '=', 'campeonato_partido_faltas.equipo_id')
+            ->where('p.campeonato_id', $campeonato->id)
+            ->select([
+                'campeonato_partido_faltas.jugador_id',
+                'campeonato_partido_faltas.equipo_id',
+                'j.nombre as jugador_nombre',
+                'e.nombre as equipo_nombre',
+            ])
+            ->get();
+        foreach ($faltas as $r) {
+            $this->rankingIncrement($rows, $r->jugador_id, $r->jugador_nombre, $r->equipo_id, $r->equipo_nombre, 'faltas');
+        }
+
+        $amarillas = CampeonatoPartidoTarjetaAmarilla::query()
+            ->join('campeonato_partidos as p', 'p.id', '=', 'campeonato_partido_tarjetas_amarillas.campeonato_partido_id')
+            ->leftJoin('campeonato_jugadores as j', 'j.id', '=', 'campeonato_partido_tarjetas_amarillas.jugador_id')
+            ->leftJoin('campeonato_equipos as e', 'e.id', '=', 'campeonato_partido_tarjetas_amarillas.equipo_id')
+            ->where('p.campeonato_id', $campeonato->id)
+            ->select([
+                'campeonato_partido_tarjetas_amarillas.jugador_id',
+                'campeonato_partido_tarjetas_amarillas.equipo_id',
+                'j.nombre as jugador_nombre',
+                'e.nombre as equipo_nombre',
+            ])
+            ->get();
+        foreach ($amarillas as $r) {
+            $this->rankingIncrement($rows, $r->jugador_id, $r->jugador_nombre, $r->equipo_id, $r->equipo_nombre, 'amarillas');
+        }
+
+        $rojas = CampeonatoPartidoTarjetaRoja::query()
+            ->join('campeonato_partidos as p', 'p.id', '=', 'campeonato_partido_tarjetas_rojas.campeonato_partido_id')
+            ->leftJoin('campeonato_jugadores as j', 'j.id', '=', 'campeonato_partido_tarjetas_rojas.jugador_id')
+            ->leftJoin('campeonato_equipos as e', 'e.id', '=', 'campeonato_partido_tarjetas_rojas.equipo_id')
+            ->where('p.campeonato_id', $campeonato->id)
+            ->select([
+                'campeonato_partido_tarjetas_rojas.jugador_id',
+                'campeonato_partido_tarjetas_rojas.equipo_id',
+                'j.nombre as jugador_nombre',
+                'e.nombre as equipo_nombre',
+            ])
+            ->get();
+        foreach ($rojas as $r) {
+            $this->rankingIncrement($rows, $r->jugador_id, $r->jugador_nombre, $r->equipo_id, $r->equipo_nombre, 'rojas');
+        }
+
+        $sustituciones = CampeonatoPartidoSustitucion::query()
+            ->join('campeonato_partidos as p', 'p.id', '=', 'campeonato_partido_sustituciones.campeonato_partido_id')
+            ->leftJoin('campeonato_jugadores as js', 'js.id', '=', 'campeonato_partido_sustituciones.jugador_sale_id')
+            ->leftJoin('campeonato_jugadores as je', 'je.id', '=', 'campeonato_partido_sustituciones.jugador_entra_id')
+            ->leftJoin('campeonato_equipos as e', 'e.id', '=', 'campeonato_partido_sustituciones.equipo_id')
+            ->where('p.campeonato_id', $campeonato->id)
+            ->select([
+                'campeonato_partido_sustituciones.equipo_id',
+                'campeonato_partido_sustituciones.jugador_sale_id',
+                'campeonato_partido_sustituciones.jugador_entra_id',
+                'js.nombre as jugador_sale_nombre',
+                'je.nombre as jugador_entra_nombre',
+                'e.nombre as equipo_nombre',
+            ])
+            ->get();
+        foreach ($sustituciones as $r) {
+            if ($r->jugador_sale_id) {
+                $this->rankingIncrement($rows, $r->jugador_sale_id, $r->jugador_sale_nombre, $r->equipo_id, $r->equipo_nombre, 'sustituciones');
+            }
+            if ($r->jugador_entra_id) {
+                $this->rankingIncrement($rows, $r->jugador_entra_id, $r->jugador_entra_nombre, $r->equipo_id, $r->equipo_nombre, 'sustituciones');
+            }
+            if (!$r->jugador_sale_id && !$r->jugador_entra_id) {
+                $this->rankingIncrement($rows, null, 'Sin jugador', $r->equipo_id, $r->equipo_nombre, 'sustituciones');
+            }
+        }
+
+        $porteros = CampeonatoPartidoPortero::query()
+            ->join('campeonato_partidos as p', 'p.id', '=', 'campeonato_partido_porteros.campeonato_partido_id')
+            ->leftJoin('campeonato_jugadores as j', 'j.id', '=', 'campeonato_partido_porteros.jugador_id')
+            ->leftJoin('campeonato_equipos as e', 'e.id', '=', 'campeonato_partido_porteros.equipo_id')
+            ->where('p.campeonato_id', $campeonato->id)
+            ->select([
+                'campeonato_partido_porteros.jugador_id',
+                'campeonato_partido_porteros.equipo_id',
+                'campeonato_partido_porteros.nombre_portero',
+                'j.nombre as jugador_nombre',
+                'e.nombre as equipo_nombre',
+            ])
+            ->get();
+        foreach ($porteros as $r) {
+            $name = $r->jugador_nombre ?: ($r->nombre_portero ?: 'Portero');
+            $this->rankingIncrement($rows, $r->jugador_id, $name, $r->equipo_id, $r->equipo_nombre, 'porteros');
+        }
+
+        $out = array_values($rows);
+        usort($out, function ($a, $b) {
+            if ($a['total'] !== $b['total']) return $b['total'] <=> $a['total'];
+            if ($a['goles'] !== $b['goles']) return $b['goles'] <=> $a['goles'];
+            if ($a['faltas'] !== $b['faltas']) return $b['faltas'] <=> $a['faltas'];
+            return strcasecmp((string) $a['jugador'], (string) $b['jugador']);
+        });
+
+        $resumen = [
+            'goles' => array_sum(array_column($out, 'goles')),
+            'faltas' => array_sum(array_column($out, 'faltas')),
+            'amarillas' => array_sum(array_column($out, 'amarillas')),
+            'rojas' => array_sum(array_column($out, 'rojas')),
+            'sustituciones' => array_sum(array_column($out, 'sustituciones')),
+            'porteros' => array_sum(array_column($out, 'porteros')),
+        ];
+
+        return response()->json([
+            'rows' => $out,
+            'resumen' => $resumen,
+        ]);
+    }
+
     public function fasesIndex(Request $request, Campeonato $campeonato)
     {
         if (!$this->canAccess($request, $campeonato)) {

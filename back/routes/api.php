@@ -14,6 +14,7 @@ Route::get('/public/deportes', [CampeonatoController::class, 'deportes']);
 Route::get('/public/campeonatos/{code}/mensajes', [CampeonatoController::class, 'publicMensajes']);
 Route::post('/public/campeonatos/{code}/mensajes', [CampeonatoController::class, 'publicMensajeStore']);
 Route::get('/public/campeonatos/{code}/clasificacion', [CampeonatoController::class, 'clasificacionPublic']);
+Route::get('/public/campeonatos/{code}/ranking', [CampeonatoController::class, 'rankingPublic']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/me/password', [App\Http\Controllers\UserController::class, 'changeMyPassword']);

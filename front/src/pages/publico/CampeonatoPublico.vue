@@ -189,10 +189,11 @@
         </q-tab-panel>
 
         <q-tab-panel name="ranking" class="panel-light-amber">
-          <q-banner dense rounded class="bg-white text-brown-9">
-            <q-icon name="construction" class="q-mr-xs" />
-            Ranking en construccion (goles y asistencias).
-          </q-banner>
+          <RankingPanel
+            :code="$route.params.code"
+            :campeonato="campeonato"
+            :is-light-mode="isLightMode"
+          />
         </q-tab-panel>
 
         <q-tab-panel name="configuracion" v-if="$store?.isLogged">
@@ -584,11 +585,13 @@
 
 <script>
 import ClasificacionPanel from 'components/campeonatos/ClasificacionPanel.vue'
+import RankingPanel from 'components/campeonatos/RankingPanel.vue'
 
 export default {
   name: 'CampeonatoPublicoPage',
   components: {
-    ClasificacionPanel
+    ClasificacionPanel,
+    RankingPanel
   },
   props: {
     isLightMode: { type: Boolean, default: false }
