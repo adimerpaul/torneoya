@@ -724,6 +724,10 @@ class CampeonatoController extends Controller
 
     public function reportePdfPublic(Request $request, string $code)
     {
+        if (!$request->user()) {
+            return response()->json(['message' => 'Debes iniciar sesion para descargar reportes'], 403);
+        }
+
         $campeonato = Campeonato::with('user:id,name,username')->where('codigo', strtoupper($code))->first();
         if (!$campeonato) {
             return response()->json(['message' => 'Codigo no encontrado'], 404);

@@ -29,6 +29,7 @@
           <div class="col-12 col-md-4 text-right row justify-end q-gutter-sm">
             <q-btn color="primary" icon="refresh" no-caps label="Actualizar" @click="cargar" :loading="btnLoading.refresh" />
             <q-btn-dropdown
+              v-if="$store?.isLogged"
               color="deep-purple"
               icon="picture_as_pdf"
               no-caps
@@ -1055,6 +1056,10 @@ export default {
       window.URL.revokeObjectURL(url)
     },
     downloadReport (type) {
+      if (!this.$store?.isLogged) {
+        this.$alert.error('Debes iniciar sesion para descargar reportes')
+        return
+      }
       this.btnLoading.report = true
       const params = { type }
       if (this.faseId) params.fase_id = this.faseId

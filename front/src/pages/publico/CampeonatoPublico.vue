@@ -40,6 +40,18 @@
           <q-space />
 
           <div class="column q-gutter-sm actions-col">
+            <div v-if="$store?.isLogged" class="row">
+              <q-btn
+                color="indigo-9"
+                text-color="white"
+                class="btn-top-home"
+                no-caps
+                dense
+                icon="home"
+                label="Home"
+                @click="goHome"
+              />
+            </div>
             <q-btn color="white" text-color="indigo-9" no-caps icon="share" label="Compartir" @click="sharePublic" />
             <q-btn v-if="creatorWhatsappLink" color="positive" no-caps icon="chat" label="WhatsApp al creador" @click="openWhatsApp" />
           </div>
@@ -85,7 +97,7 @@
           <div class="row items-center q-mb-sm">
             <div class="text-subtitle1 text-weight-medium text-cyan-2">Resumen</div>
             <q-space />
-            <q-btn color="primary" text-color="white" no-caps icon="refresh" label="Actualizar" :loading="loading" @click="refreshInicio" />
+            <q-btn color="primary" text-color="white" no-caps class="btn-refresh-home" icon="refresh" label="Actualizar" :loading="loading" @click="refreshInicio" />
           </div>
           <q-card flat bordered class="q-mb-md bg-dark-card text-blue-1">
             <q-card-section>{{ campeonato.descripcion || 'Sin descripcion' }}</q-card-section>
@@ -766,6 +778,9 @@ export default {
       if (!this.creatorWhatsappLink) return
       window.open(this.creatorWhatsappLink, '_blank')
     },
+    goHome () {
+      this.$router.push('/')
+    },
     goToPadre () {
       if (!this.campeonato?.parent?.codigo) return
       this.$router.push(`/c/${this.campeonato.parent.codigo}`)
@@ -1115,6 +1130,18 @@ export default {
 .btn-parent-back :deep(.q-btn__content),
 .public-page.mode-light .btn-parent-back,
 .public-page.mode-light .btn-parent-back :deep(.q-btn__content) {
+  color: #ffffff !important;
+}
+.btn-refresh-home,
+.btn-refresh-home :deep(.q-btn__content),
+.public-page.mode-light .btn-refresh-home,
+.public-page.mode-light .btn-refresh-home :deep(.q-btn__content) {
+  color: #ffffff !important;
+}
+.btn-top-home,
+.btn-top-home :deep(.q-btn__content),
+.public-page.mode-light .btn-top-home,
+.public-page.mode-light .btn-top-home :deep(.q-btn__content) {
   color: #ffffff !important;
 }
 .public-page.mode-light {
