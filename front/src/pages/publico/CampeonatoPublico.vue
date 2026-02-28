@@ -1,6 +1,6 @@
 
 <template>
-  <q-page class="public-page">
+  <q-page class="public-page" :class="{ 'mode-light': isLightMode }">
     <div class="hero" :style="{ backgroundImage: `url(${imageSrc(campeonato.banner || 'torneoBanner.jpg')})` }">
       <div class="hero-overlay">
         <div class="hero-content">
@@ -52,7 +52,13 @@
         <q-tab name="inicio" label="Inicio" :icon="tabIcon('inicio')" :class="tabClass('inicio')" />
         <q-tab name="clasificacion" label="Clasificacion" :icon="tabIcon('clasificacion')" :class="tabClass('clasificacion')" />
         <q-tab name="ranking" label="Ranking" :icon="tabIcon('ranking')" :class="tabClass('ranking')" />
-        <q-tab name="configuracion" label="Configuracion" :icon="tabIcon('configuracion')" :class="tabClass('configuracion')" />
+        <q-tab
+          v-if="$store?.isLogged"
+          name="configuracion"
+          label="Configuracion"
+          :icon="tabIcon('configuracion')"
+          :class="tabClass('configuracion')"
+        />
       </q-tabs>
 
       <q-tab-panels v-model="tab" animated class="panels">
@@ -152,7 +158,7 @@
                   type="textarea"
                   autogrow
                   outlined
-                  dark
+                  :dark="!isLightMode"
                   color="teal-3"
                   label="Escribe tu mensaje"
                   hint="Tu mensaje se publica al presionar Enviar"
@@ -166,10 +172,12 @@
         </q-tab-panel>
 
         <q-tab-panel name="clasificacion" class="panel-light-blue">
-          <q-banner dense rounded class="bg-white text-indigo-10">
-            <q-icon name="construction" class="q-mr-xs" />
-            Clasificacion en construccion.
-          </q-banner>
+          <ClasificacionPanel
+            :code="$route.params.code"
+            :campeonato="campeonato"
+            :can-edit="canEdit"
+            :is-light-mode="isLightMode"
+          />
         </q-tab-panel>
 
         <q-tab-panel name="ranking" class="panel-light-amber">
@@ -179,7 +187,7 @@
           </q-banner>
         </q-tab-panel>
 
-        <q-tab-panel name="configuracion">
+        <q-tab-panel name="configuracion" v-if="$store?.isLogged">
           <q-banner v-if="!canEdit" dense rounded class="bg-orange-2 text-orange-10 q-mb-sm">
             Solo el creador o administrador logueado puede modificar este campeonato.
           </q-banner>
@@ -187,7 +195,7 @@
           <q-form @submit.prevent="saveConfig()">
             <div class="row q-col-gutter-sm">
               <div class="col-12 col-md-6">
-                <q-input v-model="config.nombre" dense outlined dark color="cyan-3" label="Nombre" :disable="!canEdit" />
+                <q-input v-model="config.nombre" dense outlined :dark="!isLightMode" color="cyan-3" label="Nombre" :disable="!canEdit" />
               </div>
               <div class="col-12 col-md-6">
                 <q-option-group
@@ -203,17 +211,17 @@
                 />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="config.fecha_inicio" dense outlined dark type="date" color="cyan-3" label="Fecha inicio" :disable="!canEdit" />
+                <q-input v-model="config.fecha_inicio" dense outlined :dark="!isLightMode" type="date" color="cyan-3" label="Fecha inicio" :disable="!canEdit" />
               </div>
               <div class="col-12 col-md-6">
-                <q-input v-model="config.fecha_fin" dense outlined dark type="date" color="cyan-3" label="Fecha fin" :disable="!canEdit" />
+                <q-input v-model="config.fecha_fin" dense outlined :dark="!isLightMode" type="date" color="cyan-3" label="Fecha fin" :disable="!canEdit" />
               </div>
               <div class="col-12 col-md-6" v-if="config.tipo === 'unico'">
                 <q-select
                   v-model="config.deporte"
                   dense
                   outlined
-                  dark
+                  :dark="!isLightMode"
                   color="cyan-3"
                   emit-value
                   map-options
@@ -229,7 +237,7 @@
                   v-model="config.imagen"
                   dense
                   outlined
-                  dark
+                  :dark="!isLightMode"
                   color="cyan-3"
                   label="Logo/imagen"
                   accept="image/*"
@@ -242,7 +250,7 @@
                   v-model="config.banner"
                   dense
                   outlined
-                  dark
+                  :dark="!isLightMode"
                   color="cyan-3"
                   label="Banner/fondo"
                   accept="image/*"
@@ -267,7 +275,7 @@
                 </q-card>
               </div>
               <div class="col-12">
-                <q-input v-model="config.descripcion" dense outlined dark color="cyan-3" type="textarea" autogrow label="Descripcion" :disable="!canEdit" />
+                <q-input v-model="config.descripcion" dense outlined :dark="!isLightMode" color="cyan-3" type="textarea" autogrow label="Descripcion" :disable="!canEdit" />
               </div>
             </div>
 
@@ -518,8 +526,16 @@
 </template>
 
 <script>
+import ClasificacionPanel from 'components/campeonatos/ClasificacionPanel.vue'
+
 export default {
   name: 'CampeonatoPublicoPage',
+  components: {
+    ClasificacionPanel
+  },
+  props: {
+    isLightMode: { type: Boolean, default: false }
+  },
   data () {
     return {
       loading: false,
@@ -954,15 +970,55 @@ export default {
 .pub-tabs :deep(.q-tab) { margin-right: 8px; border-radius: 10px; color: #cbd5e1; padding: 0 12px; }
 .pub-tabs :deep(.q-tab__label) { text-transform: none; letter-spacing: 0; }
 .tab-active { color: #fff !important; border: 1px solid rgba(255, 255, 255, 0.32); }
-.tab-inicio.tab-active { background: rgba(37, 99, 235, 0.5); }
-.tab-clasificacion.tab-active { background: rgba(14, 116, 144, 0.5); }
-.tab-ranking.tab-active { background: rgba(180, 83, 9, 0.5); }
-.tab-configuracion.tab-active { background: rgba(79, 70, 229, 0.5); }
+.tab-inicio.tab-active { background: rgba(37, 99, 235, 0.78); }
+.tab-clasificacion.tab-active { background: rgba(14, 116, 144, 0.78); }
+.tab-ranking.tab-active { background: rgba(180, 83, 9, 0.78); }
+.tab-configuracion.tab-active { background: rgba(79, 70, 229, 0.78); }
 .panels { background: #111827; }
 .bg-dark-card { background: #0b1220; border-color: rgba(148, 163, 184, 0.25); }
 .messages-list { background: #0b1220; border-color: rgba(148, 163, 184, 0.25); }
 .panel-light-blue { background: rgba(30, 64, 175, 0.15); }
 .panel-light-amber { background: rgba(180, 83, 9, 0.18); }
+.public-page.mode-light {
+  background: linear-gradient(180deg, #f3f4f6 0%, #eef2ff 60%, #f8fafc 100%);
+}
+.public-page.mode-light .text-white {
+  color: #0f172a !important;
+}
+.public-page.mode-light .hero-overlay {
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.82), rgba(248, 250, 252, 0.72));
+}
+.public-page.mode-light .panel-shell {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #dbe4f0;
+}
+.public-page.mode-light .pub-tabs {
+  background: #eef2ff;
+}
+.public-page.mode-light .pub-tabs :deep(.q-tab) {
+  color: #334155;
+}
+.public-page.mode-light .tab-active {
+  color: #0f172a !important;
+  border-color: #94a3b8;
+}
+.public-page.mode-light .panels {
+  background: #ffffff;
+}
+.public-page.mode-light .bg-dark-card,
+.public-page.mode-light .messages-list {
+  background: #ffffff;
+  border-color: #dbe4f0;
+}
+.public-page.mode-light .text-blue-1,
+.public-page.mode-light .text-blue-2,
+.public-page.mode-light .text-cyan-2,
+.public-page.mode-light .text-deep-orange-3,
+.public-page.mode-light .text-grey-3,
+.public-page.mode-light .text-grey-4 {
+  color: #334155 !important;
+}
 @media (max-width: 700px) {
   .hero-content {
     flex-wrap: wrap;

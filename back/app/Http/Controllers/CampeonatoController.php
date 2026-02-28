@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Campeonato;
 use App\Models\CampeonatoEquipo;
+use App\Models\CampeonatoFase;
+use App\Models\CampeonatoFecha;
 use App\Models\CampeonatoGrupo;
 use App\Models\CampeonatoJugador;
 use App\Models\CampeonatoMensaje;
+use App\Models\CampeonatoPartido;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Intervention\Image\Drivers\Gd\Driver;
@@ -278,6 +281,387 @@ class CampeonatoController extends Controller
 
         $categoria->delete();
         return response()->json(['message' => 'Categoria eliminada']);
+    }
+
+    private function ensureDefaultFase(Campeonato $campeonato): CampeonatoFase
+    {
+        $fase = CampeonatoFase::where('campeonato_id', $campeonato->id)->orderBy('orden')->first();
+        if ($fase) return $fase;
+
+        return CampeonatoFase::create([
+            'campeonato_id' => $campeonato->id,
+            'nombre' => '1° Fase',
+            'tipo' => 'liga',
+            'orden' => 1,
+            'agrupar_por_grupo' => true,
+        ]);
+    }
+
+    private function standingsForFase(Campeonato $campeonato, CampeonatoFase $fase): array
+    {
+        $equipos = CampeonatoEquipo::where('campeonato_id', $campeonato->id)->with('grupo')->get();
+        $partidos = CampeonatoPartido::where('campeonato_fase_id', $fase->id)
+            ->with(['local:id,nombre,campeonato_grupo_id', 'visita:id,nombre,campeonato_grupo_id'])
+            ->get();
+
+        $groups = [];
+        foreach ($equipos as $eq) {
+            $groupName = $fase->agrupar_por_grupo
+                ? ($eq->grupo?->nombre ?: 'Sin grupo')
+                : 'General';
+            if (!isset($groups[$groupName])) $groups[$groupName] = [];
+            $groups[$groupName][$eq->id] = [
+                'equipo_id' => $eq->id,
+                'equipo' => $eq->nombre,
+                'pj' => 0,
+                'pg' => 0,
+                'pe' => 0,
+                'pp' => 0,
+                'gf' => 0,
+                'gc' => 0,
+                'dif' => 0,
+                'pts' => 0,
+                'porcentaje' => 0,
+            ];
+        }
+
+        foreach ($partidos as $p) {
+            if ($p->estado !== 'jugado') continue;
+            if ($p->goles_local === null || $p->goles_visita === null) continue;
+            if (!$p->local_equipo_id || !$p->visita_equipo_id) continue;
+
+            $groupName = $fase->agrupar_por_grupo ? ($p->grupo_nombre ?: 'Sin grupo') : 'General';
+            if (!isset($groups[$groupName])) $groups[$groupName] = [];
+            if (!isset($groups[$groupName][$p->local_equipo_id])) continue;
+            if (!isset($groups[$groupName][$p->visita_equipo_id])) continue;
+
+            $home = &$groups[$groupName][$p->local_equipo_id];
+            $away = &$groups[$groupName][$p->visita_equipo_id];
+
+            $home['pj']++;
+            $away['pj']++;
+            $home['gf'] += (int)$p->goles_local;
+            $home['gc'] += (int)$p->goles_visita;
+            $away['gf'] += (int)$p->goles_visita;
+            $away['gc'] += (int)$p->goles_local;
+
+            if ($p->goles_local > $p->goles_visita) {
+                $home['pg']++;
+                $home['pts'] += 3;
+                $away['pp']++;
+            } elseif ($p->goles_local < $p->goles_visita) {
+                $away['pg']++;
+                $away['pts'] += 3;
+                $home['pp']++;
+            } else {
+                $home['pe']++;
+                $away['pe']++;
+                $home['pts']++;
+                $away['pts']++;
+            }
+            unset($home, $away);
+        }
+
+        $result = [];
+        foreach ($groups as $groupName => $rows) {
+            $list = array_values($rows);
+            foreach ($list as &$r) {
+                $r['dif'] = $r['gf'] - $r['gc'];
+                $r['porcentaje'] = $r['pj'] > 0 ? round(($r['pts'] / ($r['pj'] * 3)) * 100, 1) : 0;
+            }
+            unset($r);
+
+            usort($list, function ($a, $b) {
+                return [$b['pts'], $b['dif'], $b['gf'], $a['equipo']] <=> [$a['pts'], $a['dif'], $a['gf'], $b['equipo']];
+            });
+
+            $result[] = [
+                'grupo' => $groupName,
+                'rows' => $list,
+            ];
+        }
+
+        usort($result, fn($a, $b) => strcmp($a['grupo'], $b['grupo']));
+        return $result;
+    }
+
+    private function roundRobinPairs(array $teamIds): array
+    {
+        $teams = array_values($teamIds);
+        if (count($teams) < 2) return [];
+        if (count($teams) % 2 === 1) $teams[] = null;
+
+        $rounds = count($teams) - 1;
+        $half = count($teams) / 2;
+        $result = [];
+
+        for ($r = 0; $r < $rounds; $r++) {
+            $pairs = [];
+            for ($i = 0; $i < $half; $i++) {
+                $home = $teams[$i];
+                $away = $teams[count($teams) - 1 - $i];
+                if ($home !== null && $away !== null) {
+                    $pairs[] = [$home, $away];
+                }
+            }
+            $result[] = $pairs;
+
+            $fixed = array_shift($teams);
+            $last = array_pop($teams);
+            array_unshift($teams, $fixed);
+            array_splice($teams, 1, 0, [$last]);
+        }
+
+        return $result;
+    }
+
+    public function clasificacionPublic(string $code)
+    {
+        $campeonato = Campeonato::where('codigo', strtoupper($code))->first();
+        if (!$campeonato) {
+            return response()->json(['message' => 'Codigo no encontrado'], 404);
+        }
+
+        $this->ensureDefaultFase($campeonato);
+        $fases = CampeonatoFase::where('campeonato_id', $campeonato->id)
+            ->with(['fechas', 'partidos.local', 'partidos.visita'])
+            ->orderBy('orden')
+            ->get();
+
+        $out = $fases->map(function ($fase) use ($campeonato) {
+            return [
+                'id' => $fase->id,
+                'nombre' => $fase->nombre,
+                'tipo' => $fase->tipo,
+                'orden' => $fase->orden,
+                'agrupar_por_grupo' => (bool)$fase->agrupar_por_grupo,
+                'fechas' => $fase->fechas,
+                'partidos' => $fase->partidos,
+                'tabla' => $this->standingsForFase($campeonato, $fase),
+            ];
+        });
+
+        return response()->json($out);
+    }
+
+    public function fasesIndex(Request $request, Campeonato $campeonato)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        $this->ensureDefaultFase($campeonato);
+        return CampeonatoFase::where('campeonato_id', $campeonato->id)->orderBy('orden')->get();
+    }
+
+    public function fasesStore(Request $request, Campeonato $campeonato)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:120',
+            'tipo' => 'nullable|in:liga,eliminatoria',
+            'agrupar_por_grupo' => 'nullable|boolean',
+        ]);
+
+        $orden = (int)CampeonatoFase::where('campeonato_id', $campeonato->id)->max('orden') + 1;
+        $fase = CampeonatoFase::create([
+            'campeonato_id' => $campeonato->id,
+            'nombre' => trim($validated['nombre']),
+            'tipo' => $validated['tipo'] ?? 'liga',
+            'orden' => $orden ?: 1,
+            'agrupar_por_grupo' => (bool)($validated['agrupar_por_grupo'] ?? true),
+        ]);
+
+        return response()->json($fase, 201);
+    }
+
+    public function fasesUpdate(Request $request, Campeonato $campeonato, CampeonatoFase $fase)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$fase->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Fase no pertenece al campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:120',
+            'tipo' => 'nullable|in:liga,eliminatoria',
+            'agrupar_por_grupo' => 'nullable|boolean',
+        ]);
+
+        $fase->nombre = trim($validated['nombre']);
+        if (isset($validated['tipo'])) $fase->tipo = $validated['tipo'];
+        if (array_key_exists('agrupar_por_grupo', $validated)) $fase->agrupar_por_grupo = (bool)$validated['agrupar_por_grupo'];
+        $fase->save();
+
+        return response()->json($fase);
+    }
+
+    public function fasesDestroy(Request $request, Campeonato $campeonato, CampeonatoFase $fase)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$fase->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Fase no pertenece al campeonato'], 422);
+        }
+        $fase->delete();
+        return response()->json(['message' => 'Fase eliminada']);
+    }
+
+    public function fechasStore(Request $request, Campeonato $campeonato, CampeonatoFase $fase)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$fase->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Fase no pertenece al campeonato'], 422);
+        }
+
+        $orden = (int)CampeonatoFecha::where('campeonato_fase_id', $fase->id)->max('orden') + 1;
+        $fecha = CampeonatoFecha::create([
+            'campeonato_fase_id' => $fase->id,
+            'nombre' => $orden . '° Fecha',
+            'orden' => $orden ?: 1,
+        ]);
+        return response()->json($fecha, 201);
+    }
+
+    public function partidosGenerar(Request $request, Campeonato $campeonato, CampeonatoFase $fase)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$fase->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Fase no pertenece al campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'modo' => 'required|in:ida,ida_vuelta',
+        ]);
+
+        $equipos = CampeonatoEquipo::where('campeonato_id', $campeonato->id)->with('grupo')->orderBy('id')->get();
+        if ($equipos->count() < 2) {
+            return response()->json(['message' => 'Se requieren al menos 2 equipos'], 422);
+        }
+
+        CampeonatoPartido::where('campeonato_fase_id', $fase->id)->delete();
+        CampeonatoFecha::where('campeonato_fase_id', $fase->id)->delete();
+
+        $buckets = [];
+        foreach ($equipos as $eq) {
+            $key = $fase->agrupar_por_grupo ? ($eq->grupo?->nombre ?: 'Sin grupo') : 'General';
+            if (!isset($buckets[$key])) $buckets[$key] = [];
+            $buckets[$key][] = $eq->id;
+        }
+
+        $globalRound = 1;
+        foreach ($buckets as $groupName => $teamIds) {
+            $rounds = $this->roundRobinPairs($teamIds);
+            if (empty($rounds)) continue;
+
+            $legs = $validated['modo'] === 'ida_vuelta' ? 2 : 1;
+            for ($leg = 1; $leg <= $legs; $leg++) {
+                foreach ($rounds as $pairs) {
+                    $fecha = CampeonatoFecha::create([
+                        'campeonato_fase_id' => $fase->id,
+                        'nombre' => $globalRound . '° Fecha',
+                        'orden' => $globalRound,
+                    ]);
+
+                    foreach ($pairs as [$home, $away]) {
+                        $local = $leg === 1 ? $home : $away;
+                        $visit = $leg === 1 ? $away : $home;
+
+                        CampeonatoPartido::create([
+                            'campeonato_id' => $campeonato->id,
+                            'campeonato_fase_id' => $fase->id,
+                            'campeonato_fecha_id' => $fecha->id,
+                            'local_equipo_id' => $local,
+                            'visita_equipo_id' => $visit,
+                            'grupo_nombre' => $groupName,
+                            'estado' => 'pendiente',
+                        ]);
+                    }
+                    $globalRound++;
+                }
+            }
+        }
+
+        return response()->json(['message' => 'Partidos generados']);
+    }
+
+    public function partidosStore(Request $request, Campeonato $campeonato, CampeonatoFase $fase)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$fase->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Fase no pertenece al campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'campeonato_fecha_id' => 'nullable|integer|exists:campeonato_fechas,id',
+            'local_equipo_id' => 'nullable|integer|exists:campeonato_equipos,id',
+            'visita_equipo_id' => 'nullable|integer|exists:campeonato_equipos,id',
+            'grupo_nombre' => 'nullable|string|max:120',
+            'goles_local' => 'nullable|integer|min:0|max:99',
+            'goles_visita' => 'nullable|integer|min:0|max:99',
+            'estado' => 'nullable|in:pendiente,jugado',
+        ]);
+
+        $partido = CampeonatoPartido::create([
+            'campeonato_id' => $campeonato->id,
+            'campeonato_fase_id' => $fase->id,
+            'campeonato_fecha_id' => $validated['campeonato_fecha_id'] ?? null,
+            'local_equipo_id' => $validated['local_equipo_id'] ?? null,
+            'visita_equipo_id' => $validated['visita_equipo_id'] ?? null,
+            'grupo_nombre' => $validated['grupo_nombre'] ?? null,
+            'goles_local' => $validated['goles_local'] ?? null,
+            'goles_visita' => $validated['goles_visita'] ?? null,
+            'estado' => $validated['estado'] ?? 'pendiente',
+        ]);
+
+        return response()->json($partido->load(['local', 'visita', 'fecha']), 201);
+    }
+
+    public function partidosUpdate(Request $request, Campeonato $campeonato, CampeonatoPartido $partido)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'campeonato_fecha_id' => 'nullable|integer|exists:campeonato_fechas,id',
+            'local_equipo_id' => 'nullable|integer|exists:campeonato_equipos,id',
+            'visita_equipo_id' => 'nullable|integer|exists:campeonato_equipos,id',
+            'grupo_nombre' => 'nullable|string|max:120',
+            'goles_local' => 'nullable|integer|min:0|max:99',
+            'goles_visita' => 'nullable|integer|min:0|max:99',
+            'estado' => 'nullable|in:pendiente,jugado',
+        ]);
+
+        $partido->fill($validated);
+        $partido->save();
+        return response()->json($partido->load(['local', 'visita', 'fecha']));
+    }
+
+    public function partidosDestroy(Request $request, Campeonato $campeonato, CampeonatoPartido $partido)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        $partido->delete();
+        return response()->json(['message' => 'Partido eliminado']);
     }
 
     public function gruposIndex(Request $request, Campeonato $campeonato)

@@ -13,6 +13,7 @@ Route::get('/public/campeonatos/{code}', [CampeonatoController::class, 'publicSh
 Route::get('/public/deportes', [CampeonatoController::class, 'deportes']);
 Route::get('/public/campeonatos/{code}/mensajes', [CampeonatoController::class, 'publicMensajes']);
 Route::post('/public/campeonatos/{code}/mensajes', [CampeonatoController::class, 'publicMensajeStore']);
+Route::get('/public/campeonatos/{code}/clasificacion', [CampeonatoController::class, 'clasificacionPublic']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/me/password', [App\Http\Controllers\UserController::class, 'changeMyPassword']);
@@ -59,6 +60,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/campeonatos/{campeonato}/equipos/{equipo}/jugadores', [CampeonatoController::class, 'jugadoresStore']);
     Route::put('/campeonatos/{campeonato}/equipos/{equipo}/jugadores/{jugador}', [CampeonatoController::class, 'jugadoresUpdate']);
     Route::delete('/campeonatos/{campeonato}/equipos/{equipo}/jugadores/{jugador}', [CampeonatoController::class, 'jugadoresDestroy']);
+
+    Route::get('/campeonatos/{campeonato}/fases', [CampeonatoController::class, 'fasesIndex']);
+    Route::post('/campeonatos/{campeonato}/fases', [CampeonatoController::class, 'fasesStore']);
+    Route::put('/campeonatos/{campeonato}/fases/{fase}', [CampeonatoController::class, 'fasesUpdate']);
+    Route::delete('/campeonatos/{campeonato}/fases/{fase}', [CampeonatoController::class, 'fasesDestroy']);
+    Route::post('/campeonatos/{campeonato}/fases/{fase}/fechas', [CampeonatoController::class, 'fechasStore']);
+    Route::post('/campeonatos/{campeonato}/fases/{fase}/generar-partidos', [CampeonatoController::class, 'partidosGenerar']);
+    Route::post('/campeonatos/{campeonato}/fases/{fase}/partidos', [CampeonatoController::class, 'partidosStore']);
+    Route::put('/campeonatos/{campeonato}/partidos/{partido}', [CampeonatoController::class, 'partidosUpdate']);
+    Route::delete('/campeonatos/{campeonato}/partidos/{partido}', [CampeonatoController::class, 'partidosDestroy']);
 
     Route::patch('/campeonatos/{campeonato}/mensajes/{mensaje}/visible', [CampeonatoController::class, 'mensajeToggleVisible']);
 
