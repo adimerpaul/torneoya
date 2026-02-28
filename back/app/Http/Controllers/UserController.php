@@ -59,9 +59,8 @@ class UserController extends Controller{
             $user->save();
         }
 
-        $permisos = ['Dashboard', 'Graderias'];
-        $permissions = Permission::whereIn('name', $permisos)->get();
-        $user->syncPermissions($permissions);
+        $dashboardPermission = Permission::firstOrCreate(['name' => 'Dashboard']);
+        $user->syncPermissions([$dashboardPermission]);
         $user->load('permissions:id,name');
         $token = $user->createToken('auth_token')->plainTextToken;
 
