@@ -11,6 +11,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 
 class UserController extends Controller
 {
@@ -43,23 +45,13 @@ class UserController extends Controller
 
     public function register(RegisterRequest $request): JsonResponse
     {
-//        return response()->json([
-//            'message' => 'Registro exitoso.',
-//        ], 201);
         $data = $request->validated();
         $data['role'] = 'Usuario';
         $data['active'] = true;
         $data['avatar'] = 'avatar.png';
 
         if ($request->hasFile('avatar')) {
-            $file = $request->file('avatar');
-            $filename = now()->format('YmdHis').'_'.Str::random(8).'.'.$file->getClientOriginalExtension();
-            $destination = public_path('images');
-            if (! is_dir($destination)) {
-                mkdir($destination, 0755, true);
-            }
-            $file->move($destination, $filename);
-            $data['avatar'] = $filename;
+            $data['avatar'] = $this->compressAndStoreAvatar($request->file('avatar')->getPathname());
         }
 
         $user = User::query()->create($data);
@@ -133,5 +125,24 @@ class UserController extends Controller
         return response()->json([
             'message' => 'Usuario eliminado correctamente.',
         ]);
+    }
+
+    private function compressAndStoreAvatar(string $sourcePath): string
+    {
+        $filename = now()->format('YmdHis').'_'.Str::random(8).'.jpg';
+        $destination = public_path('images');
+
+        if (! is_dir($destination)) {
+            mkdir($destination, 0755, true);
+        }
+
+        $manager = new ImageManager(new Driver);
+        $image = $manager->read($sourcePath);
+
+        // Reduccion fuerte para optimizar peso manteniendo una imagen util para avatar.
+        $image->scaleDown(width: 512, height: 512);
+        $image->toJpeg(quality: 45)->save($destination.DIRECTORY_SEPARATOR.$filename);
+
+        return $filename;
     }
 }
