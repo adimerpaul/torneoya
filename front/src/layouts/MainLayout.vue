@@ -163,6 +163,25 @@
           </q-item-section>
         </q-item>
 
+        <!-- CAMPEONATOS -->
+        <q-item
+          dense
+          to="/campeonatos"
+          exact
+          clickable
+          class="menu-item"
+          active-class="menu-active"
+          v-close-popup
+          v-if="hasPermission('Dashboard')"
+        >
+          <q-item-section avatar>
+            <q-icon name="emoji_events" class="text-white" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label class="text-white">Campeonatos</q-item-label>
+          </q-item-section>
+        </q-item>
+
         <!-- ========================= -->
         <!-- GRADERÃAS (NUEVO MÃ“DULO) -->
         <!-- ========================= -->
@@ -322,6 +341,5 @@ export default {
   border-radius: 10px;
 }
 </style>
-
 
 

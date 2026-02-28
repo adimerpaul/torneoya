@@ -13,6 +13,11 @@
         path:'/cambiar-contrasena',
         component: () => import('pages/cambiar-contrasena/CambiarContrasena.vue'),
         meta: { requiresAuth: true }
+      },
+      {
+        path: '/campeonatos',
+        component: () => import('pages/campeonatos/Campeonatos.vue'),
+        meta: { requiresAuth: true }
       }
 
     ]

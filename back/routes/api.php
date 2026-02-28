@@ -2,12 +2,14 @@
 
 //use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\CampeonatoController;
 use App\Http\Controllers\GraderiaController;
 use App\Http\Controllers\AsientoController;
 
 Route::post('/login', [App\Http\Controllers\UserController::class, 'login']);
 Route::post('/register', [App\Http\Controllers\UserController::class, 'register']);
 Route::get('/public/graderias/{code}', [GraderiaController::class, 'publicShowByCode']);
+Route::get('/public/campeonatos/{code}', [CampeonatoController::class, 'publicShowByCode']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/me/password', [App\Http\Controllers\UserController::class, 'changeMyPassword']);
@@ -30,6 +32,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/permissions', [App\Http\Controllers\UserController::class, 'permissions']);
     Route::get('/users/{user}/permissions', [App\Http\Controllers\UserController::class, 'userPermissions']);
     Route::put('/users/{user}/permissions', [App\Http\Controllers\UserController::class, 'updateUserPermissions']);
+
+    Route::get('/deportes', [CampeonatoController::class, 'deportes']);
+    Route::get('/campeonatos', [CampeonatoController::class, 'index']);
+    Route::post('/campeonatos', [CampeonatoController::class, 'store']);
+    Route::put('/campeonatos/{campeonato}', [CampeonatoController::class, 'update']);
+    Route::delete('/campeonatos/{campeonato}', [CampeonatoController::class, 'destroy']);
+    Route::get('/campeonatos/{campeonato}/categorias', [CampeonatoController::class, 'categorias']);
+    Route::post('/campeonatos/{campeonato}/categorias', [CampeonatoController::class, 'categoriaStore']);
+    Route::put('/campeonatos/{campeonato}/categorias/{categoria}', [CampeonatoController::class, 'categoriaUpdate']);
+    Route::delete('/campeonatos/{campeonato}/categorias/{categoria}', [CampeonatoController::class, 'categoriaDestroy']);
 
     // Mis graderías (usuario logueado)
 //    Route::get('mis-graderias', [GraderiaController::class, 'index']);
