@@ -290,7 +290,7 @@ class CampeonatoController extends Controller
 
         return CampeonatoFase::create([
             'campeonato_id' => $campeonato->id,
-            'nombre' => '1° Fase',
+            'nombre' => 'Primera fase',
             'tipo' => 'liga',
             'orden' => 1,
             'agrupar_por_grupo' => true,
@@ -326,7 +326,7 @@ class CampeonatoController extends Controller
         }
 
         foreach ($partidos as $p) {
-            if ($p->estado !== 'jugado') continue;
+            if (!in_array($p->estado, ['jugado', 'finalizado'], true)) continue;
             if ($p->goles_local === null || $p->goles_visita === null) continue;
             if (!$p->local_equipo_id || !$p->visita_equipo_id) continue;
 
@@ -523,7 +523,7 @@ class CampeonatoController extends Controller
         $orden = (int)CampeonatoFecha::where('campeonato_fase_id', $fase->id)->max('orden') + 1;
         $fecha = CampeonatoFecha::create([
             'campeonato_fase_id' => $fase->id,
-            'nombre' => $orden . '° Fecha',
+            'nombre' => 'Fecha ' . $orden,
             'orden' => $orden ?: 1,
         ]);
         return response()->json($fecha, 201);
@@ -567,7 +567,7 @@ class CampeonatoController extends Controller
                 foreach ($rounds as $pairs) {
                     $fecha = CampeonatoFecha::create([
                         'campeonato_fase_id' => $fase->id,
-                        'nombre' => $globalRound . '° Fecha',
+                        'nombre' => 'Fecha ' . $globalRound,
                         'orden' => $globalRound,
                     ]);
 
@@ -582,7 +582,7 @@ class CampeonatoController extends Controller
                             'local_equipo_id' => $local,
                             'visita_equipo_id' => $visit,
                             'grupo_nombre' => $groupName,
-                            'estado' => 'pendiente',
+                            'estado' => 'no_realizado',
                         ]);
                     }
                     $globalRound++;
@@ -609,7 +609,7 @@ class CampeonatoController extends Controller
             'grupo_nombre' => 'nullable|string|max:120',
             'goles_local' => 'nullable|integer|min:0|max:99',
             'goles_visita' => 'nullable|integer|min:0|max:99',
-            'estado' => 'nullable|in:pendiente,jugado',
+            'estado' => 'nullable|in:no_realizado,en_vivo,finalizado,pendiente,jugado',
         ]);
 
         $partido = CampeonatoPartido::create([
@@ -621,7 +621,7 @@ class CampeonatoController extends Controller
             'grupo_nombre' => $validated['grupo_nombre'] ?? null,
             'goles_local' => $validated['goles_local'] ?? null,
             'goles_visita' => $validated['goles_visita'] ?? null,
-            'estado' => $validated['estado'] ?? 'pendiente',
+            'estado' => $validated['estado'] ?? 'no_realizado',
         ]);
 
         return response()->json($partido->load(['local', 'visita', 'fecha']), 201);
@@ -643,7 +643,7 @@ class CampeonatoController extends Controller
             'grupo_nombre' => 'nullable|string|max:120',
             'goles_local' => 'nullable|integer|min:0|max:99',
             'goles_visita' => 'nullable|integer|min:0|max:99',
-            'estado' => 'nullable|in:pendiente,jugado',
+            'estado' => 'nullable|in:no_realizado,en_vivo,finalizado,pendiente,jugado',
         ]);
 
         $partido->fill($validated);

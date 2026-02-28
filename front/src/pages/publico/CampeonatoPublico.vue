@@ -92,7 +92,7 @@
                       <div class="text-weight-bold">{{ cat.nombre }}</div>
                       <div class="text-caption text-blue-2">{{ deporteNombre(cat.deporte) || cat.deporte || 'Sin deporte' }}</div>
                     </div>
-                    <q-btn dense color="primary" no-caps label="Entrar" @click="entrarCategoria(cat)" />
+                    <q-btn dense color="primary" class="btn-enter-cat" no-caps label="Entrar" @click="entrarCategoria(cat)" />
                   </q-card-section>
                 </q-card>
               </div>
@@ -177,6 +177,8 @@
             :campeonato="campeonato"
             :can-edit="canEdit"
             :is-light-mode="isLightMode"
+            :mensajes="mensajes"
+            @refresh-mensajes="cargarMensajes"
           />
         </q-tab-panel>
 
@@ -979,6 +981,12 @@ export default {
 .messages-list { background: #0b1220; border-color: rgba(148, 163, 184, 0.25); }
 .panel-light-blue { background: rgba(30, 64, 175, 0.15); }
 .panel-light-amber { background: rgba(180, 83, 9, 0.18); }
+.btn-enter-cat {
+  color: #ffffff !important;
+}
+.public-page.mode-light .btn-enter-cat {
+  color: #ffffff !important;
+}
 .public-page.mode-light {
   background: linear-gradient(180deg, #f3f4f6 0%, #eef2ff 60%, #f8fafc 100%);
 }
