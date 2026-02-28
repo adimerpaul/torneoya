@@ -10,6 +10,9 @@ Route::post('/login', [App\Http\Controllers\UserController::class, 'login']);
 Route::post('/register', [App\Http\Controllers\UserController::class, 'register']);
 Route::get('/public/graderias/{code}', [GraderiaController::class, 'publicShowByCode']);
 Route::get('/public/campeonatos/{code}', [CampeonatoController::class, 'publicShowByCode']);
+Route::get('/public/deportes', [CampeonatoController::class, 'deportes']);
+Route::get('/public/campeonatos/{code}/mensajes', [CampeonatoController::class, 'publicMensajes']);
+Route::post('/public/campeonatos/{code}/mensajes', [CampeonatoController::class, 'publicMensajeStore']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/me/password', [App\Http\Controllers\UserController::class, 'changeMyPassword']);
@@ -42,6 +45,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/campeonatos/{campeonato}/categorias', [CampeonatoController::class, 'categoriaStore']);
     Route::put('/campeonatos/{campeonato}/categorias/{categoria}', [CampeonatoController::class, 'categoriaUpdate']);
     Route::delete('/campeonatos/{campeonato}/categorias/{categoria}', [CampeonatoController::class, 'categoriaDestroy']);
+    Route::patch('/campeonatos/{campeonato}/mensajes/{mensaje}/visible', [CampeonatoController::class, 'mensajeToggleVisible']);
 
     // Mis graderías (usuario logueado)
 //    Route::get('mis-graderias', [GraderiaController::class, 'index']);

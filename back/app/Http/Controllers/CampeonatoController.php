@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Campeonato;
+use App\Models\CampeonatoMensaje;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Intervention\Image\Drivers\Gd\Driver;
@@ -44,6 +45,13 @@ class CampeonatoController extends Controller
         return (int) $campeonato->user_id === (int) $auth->id;
     }
 
+    private function canModerate(Request $request, Campeonato $campeonato): bool
+    {
+        $auth = $request->user();
+        if (!$auth) return false;
+        return $auth->role === 'Administrador' || (int) $campeonato->user_id === (int) $auth->id;
+    }
+
     public function deportes()
     {
         $data = [];
@@ -73,6 +81,8 @@ class CampeonatoController extends Controller
             'tipo' => 'required|in:unico,categorias',
             'deporte' => 'nullable|string|in:' . implode(',', array_keys(Campeonato::deportesCatalogo())),
             'descripcion' => 'nullable|string|max:1000',
+            'fecha_inicio' => 'nullable|date',
+            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
             'imagen' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
             'banner' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
@@ -90,6 +100,8 @@ class CampeonatoController extends Controller
             'tipo' => $validated['tipo'],
             'deporte' => $validated['deporte'] ?? null,
             'descripcion' => $validated['descripcion'] ?? null,
+            'fecha_inicio' => $validated['fecha_inicio'] ?? null,
+            'fecha_fin' => $validated['fecha_fin'] ?? null,
             'codigo' => $this->generateCode(),
             'imagen' => self::DEFAULT_IMAGE,
             'banner' => self::DEFAULT_BANNER,
@@ -120,6 +132,8 @@ class CampeonatoController extends Controller
             'tipo' => 'required|in:unico,categorias',
             'deporte' => 'nullable|string|in:' . implode(',', array_keys(Campeonato::deportesCatalogo())),
             'descripcion' => 'nullable|string|max:1000',
+            'fecha_inicio' => 'nullable|date',
+            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
             'imagen' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
             'banner' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
@@ -182,6 +196,8 @@ class CampeonatoController extends Controller
             'nombre' => 'required|string|max:180',
             'deporte' => 'required|string|in:' . implode(',', array_keys(Campeonato::deportesCatalogo())),
             'descripcion' => 'nullable|string|max:1000',
+            'fecha_inicio' => 'nullable|date',
+            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
             'imagen' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
             'banner' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
@@ -193,6 +209,8 @@ class CampeonatoController extends Controller
             'tipo' => 'categoria_item',
             'deporte' => $validated['deporte'],
             'descripcion' => $validated['descripcion'] ?? null,
+            'fecha_inicio' => $validated['fecha_inicio'] ?? null,
+            'fecha_fin' => $validated['fecha_fin'] ?? null,
             'codigo' => $this->generateCode(),
             'imagen' => self::DEFAULT_IMAGE,
             'banner' => self::DEFAULT_BANNER,
@@ -222,6 +240,8 @@ class CampeonatoController extends Controller
             'nombre' => 'required|string|max:180',
             'deporte' => 'required|string|in:' . implode(',', array_keys(Campeonato::deportesCatalogo())),
             'descripcion' => 'nullable|string|max:1000',
+            'fecha_inicio' => 'nullable|date',
+            'fecha_fin' => 'nullable|date|after_or_equal:fecha_inicio',
             'imagen' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
             'banner' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
@@ -257,10 +277,66 @@ class CampeonatoController extends Controller
         return response()->json(['message' => 'Categoria eliminada']);
     }
 
+    public function publicMensajes(Request $request, string $code)
+    {
+        $campeonato = Campeonato::where('codigo', strtoupper($code))->first();
+        if (!$campeonato) {
+            return response()->json(['message' => 'Codigo no encontrado'], 404);
+        }
+
+        $query = CampeonatoMensaje::where('campeonato_id', $campeonato->id)->with('user:id,name,username');
+        if (!$this->canModerate($request, $campeonato)) {
+            $query->where('visible', true);
+        }
+
+        return $query->latest()->get();
+    }
+
+    public function publicMensajeStore(Request $request, string $code)
+    {
+        $campeonato = Campeonato::where('codigo', strtoupper($code))->first();
+        if (!$campeonato) {
+            return response()->json(['message' => 'Codigo no encontrado'], 404);
+        }
+
+        $validated = $request->validate([
+            'mensaje' => 'required|string|max:1000',
+            'autor_nombre' => 'nullable|string|max:120',
+        ]);
+
+        $user = $request->user();
+        $autor = $validated['autor_nombre'] ?? ($user?->name ?: $user?->username ?: 'Publico');
+
+        $msg = CampeonatoMensaje::create([
+            'campeonato_id' => $campeonato->id,
+            'user_id' => $user?->id,
+            'autor_nombre' => $autor,
+            'mensaje' => $validated['mensaje'],
+            'visible' => true,
+        ]);
+
+        return response()->json($msg->load('user:id,name,username'), 201);
+    }
+
+    public function mensajeToggleVisible(Request $request, Campeonato $campeonato, CampeonatoMensaje $mensaje)
+    {
+        if (!$this->canModerate($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int) $mensaje->campeonato_id !== (int) $campeonato->id) {
+            return response()->json(['message' => 'Mensaje no pertenece al campeonato'], 422);
+        }
+
+        $mensaje->visible = !$mensaje->visible;
+        $mensaje->save();
+
+        return response()->json($mensaje);
+    }
+
     public function publicShowByCode(string $code)
     {
         $campeonato = Campeonato::where('codigo', strtoupper($code))
-            ->with('categorias')
+            ->with(['categorias', 'user:id,name,username,avatar,telefono_contacto_1'])
             ->first();
 
         if (!$campeonato) {

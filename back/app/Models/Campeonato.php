@@ -21,6 +21,8 @@ class Campeonato extends Model implements AuditableContract
         'imagen',
         'banner',
         'descripcion',
+        'fecha_inicio',
+        'fecha_fin',
     ];
 
     protected $appends = ['deporte_icono'];
@@ -38,6 +40,11 @@ class Campeonato extends Model implements AuditableContract
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function mensajes()
+    {
+        return $this->hasMany(CampeonatoMensaje::class)->latest();
     }
 
     public function getDeporteIconoAttribute(): ?string

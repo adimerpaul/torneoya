@@ -23,6 +23,13 @@
     ]
   },
   {
+    path: '/c/:code',
+    component: () => import('layouts/PublicCampeonatoLayout.vue'),
+    children: [
+      { path: '', component: () => import('pages/publico/CampeonatoPublico.vue') }
+    ]
+  },
+  {
     path: '/login',
     component: () => import('layouts/Login.vue'),
   },

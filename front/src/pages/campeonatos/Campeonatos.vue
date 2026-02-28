@@ -117,6 +117,14 @@
             />
 
             <q-input v-model="form.descripcion" type="textarea" autogrow dense outlined label="Descripcion (opcional)" class="q-mb-sm" />
+            <div class="row q-col-gutter-sm q-mb-sm">
+              <div class="col-12 col-md-6">
+                <q-input v-model="form.fecha_inicio" type="date" dense outlined label="Fecha inicio" />
+              </div>
+              <div class="col-12 col-md-6">
+                <q-input v-model="form.fecha_fin" type="date" dense outlined label="Fecha fin" />
+              </div>
+            </div>
 
             <div v-if="form.tipo === 'unico'" class="q-mb-sm">
               <div class="text-caption text-grey-7 q-mb-xs">Deporte</div>
@@ -354,6 +362,8 @@ export default {
         tipo: 'unico',
         deporte: null,
         descripcion: '',
+        fecha_inicio: '',
+        fecha_fin: '',
         imagen: null,
         banner: null,
         imagen_actual: 'torneoImagen.jpg',
@@ -454,6 +464,8 @@ export default {
         tipo: 'unico',
         deporte: null,
         descripcion: '',
+        fecha_inicio: '',
+        fecha_fin: '',
         imagen: null,
         banner: null,
         imagen_actual: 'torneoImagen.jpg',
@@ -473,6 +485,8 @@ export default {
         tipo: row.tipo === 'categoria_item' ? 'unico' : row.tipo,
         deporte: row.deporte,
         descripcion: row.descripcion || '',
+        fecha_inicio: row.fecha_inicio || '',
+        fecha_fin: row.fecha_fin || '',
         imagen: null,
         banner: null,
         imagen_actual: row.imagen || 'torneoImagen.jpg',
@@ -493,6 +507,8 @@ export default {
       fd.append('nombre', this.form.nombre)
       fd.append('tipo', this.form.tipo)
       fd.append('descripcion', this.form.descripcion || '')
+      if (this.form.fecha_inicio) fd.append('fecha_inicio', this.form.fecha_inicio)
+      if (this.form.fecha_fin) fd.append('fecha_fin', this.form.fecha_fin)
       if (this.form.deporte) fd.append('deporte', this.form.deporte)
       if (this.form.imagen) fd.append('imagen', this.form.imagen)
       if (this.form.banner) fd.append('banner', this.form.banner)
@@ -524,9 +540,7 @@ export default {
         })
     },
     abrirPublico (row) {
-      const url = `${this.$url}public/campeonatos/${row.codigo}`
-      navigator.clipboard?.writeText(url)
-      this.$alert.success(`URL copiada: ${url}`)
+      this.$router.push(`/c/${row.codigo}`)
     },
     abrirCategorias (row) {
       this.campeonatoPadre = row
