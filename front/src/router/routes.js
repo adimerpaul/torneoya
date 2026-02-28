@@ -1,4 +1,4 @@
-const routes = [
+﻿const routes = [
   {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
@@ -22,9 +22,14 @@ const routes = [
     component: () => import('layouts/Login.vue'),
   },
   {
+    path: '/register',
+    component: () => import('layouts/Register.vue'),
+  },
+  {
     path: '/:catchAll(.*)*',
     component: () => import('pages/ErrorNotFound.vue')
   }
 ]
 
 export default routes
+

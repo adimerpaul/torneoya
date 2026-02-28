@@ -13,6 +13,70 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller{
+    private function compressAndSaveAvatar($file, int $userId): string
+    {
+        $filename = time() . '_' . $userId . '.webp';
+        $path = public_path('images/' . $filename);
+        $manager = new ImageManager(new Driver());
+
+        $manager->read($file->getPathname())
+            ->cover(256, 256)
+            ->toWebp(45)
+            ->save($path);
+
+        return $filename;
+    }
+
+    public function register(Request $request)
+    {
+        $validatedData = $request->validate([
+            'name' => 'required|string|max:255',
+            'username' => 'required|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'password' => 'required|string|min:6',
+            'telefono_contacto_1' => 'required|string|max:30',
+            'avatar' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+//        verificar si existe el nombre
+        if (User::where('username', $validatedData['username'])->exists()) {
+            return response()->json(['message' => 'El nombre de usuario ya existe'], 422);
+        }
+
+        $user = User::create([
+            'name' => $validatedData['name'],
+            'username' => $validatedData['username'],
+            'email' => $validatedData['email'] ?? null,
+            'password' => $validatedData['password'],
+            'clave' => $validatedData['password'],
+            'telefono_contacto_1' => $validatedData['telefono_contacto_1'] ?? null,
+            'role' => 'Usuario',
+            'avatar' => 'default.png',
+        ]);
+
+        if ($request->hasFile('avatar')) {
+            $filename = $this->compressAndSaveAvatar($request->file('avatar'), (int) $user->id);
+            $user->avatar = $filename;
+            $user->save();
+        }
+
+        $permisos = ['Dashboard', 'Graderias'];
+        $permissions = Permission::whereIn('name', $permisos)->get();
+        $user->syncPermissions($permissions);
+        $user->load('permissions:id,name');
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Usuario registrado correctamente',
+            'token' => $token,
+            'user' => $user,
+        ], 201);
+    }
+
+    public function changeMyPasswordDialog(Request $request)
+    {
+        return $this->changeMyPassword($request);
+    }
+
     public function changeMyPassword(Request $request)
     {
         $request->validate([
@@ -33,7 +97,7 @@ class UserController extends Controller{
         $user->clave = $request->password; // si usas campo 'clave' también
         $user->save();
 
-        // ✅ Bota a TODOS (incluyéndolo a él): revoca todos los tokens
+        // ? Bota a TODOS (incluyéndolo a él): revoca todos los tokens
         $user = $request->user();
 
         $currentTokenId = $request->user()->currentAccessToken()?->id;
@@ -50,7 +114,7 @@ class UserController extends Controller{
 
     public function adminResetPassword(Request $request, User $user)
     {
-        // ✅ Asegura permisos (ajusta a tu sistema)
+        // ? Asegura permisos (ajusta a tu sistema)
         // Ejemplo simple por permission:
         if (!$request->user()->can('Usuarios')) {
             return response()->json(['message' => 'No autorizado'], 403);
@@ -67,7 +131,7 @@ class UserController extends Controller{
         $user->clave = $request->password; // si usas campo 'clave' también
         $user->save();
 
-        // ✅ Bota a TODOS: revoca tokens del usuario objetivo
+        // ? Bota a TODOS: revoca tokens del usuario objetivo
         $user = $request->user();
 
         $currentTokenId = $request->user()->currentAccessToken()?->id;
@@ -77,7 +141,7 @@ class UserController extends Controller{
             ->delete();
 
 
-        // ✅ Auditoría (sin guardar password)
+        // ? Auditoría (sin guardar password)
         // Puedes registrar en logs o una tabla password_resets_admin
         // \Log::info('Admin reset password', ['admin_id' => $request->user()->id, 'user_id' => $user->id, 'reason' => $request->reason]);
 
@@ -100,25 +164,17 @@ class UserController extends Controller{
     }
     public function updateAvatar(Request $request, $userId)
     {
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+
         $user = User::find($userId);
         if (!$user) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
 
         if ($request->hasFile('avatar')) {
-            $file = $request->file('avatar');
-            $filename = time() . '.' . $file->getClientOriginalExtension();
-            $path = public_path('images/' . $filename);
-
-            // Crear instancia del gestor de imágenes
-            $manager = new ImageManager(new Driver()); // O new Imagick\Driver()
-
-            // Redimensionar y comprimir
-            $manager->read($file->getPathname())
-                ->resize(300, 300) // o no pongas resize si no quieres cambiar tamaño
-                ->toJpeg(70)       // calidad 70%
-                ->save($path);
-
+            $filename = $this->compressAndSaveAvatar($request->file('avatar'), (int) $user->id);
             $user->avatar = $filename;
             $user->save();
 
@@ -182,6 +238,7 @@ class UserController extends Controller{
         $user = User::find($id);
         $user->update([
             'password' => bcrypt($request->password),
+            'clave' => $request->password,
         ]);
         return $user;
     }

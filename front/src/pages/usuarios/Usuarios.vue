@@ -7,7 +7,7 @@
           <div class="text-caption text-grey-7">Gestión de usuarios, roles, permisos y avatar</div>
         </div>
         <q-space />
-        <q-input v-model="filter" label="Buscar" dense outlined debounce="300" style="width: 280px">
+        <q-input v-model="filter" label="Buscar" dense outlined debounce="300" style="width: 280px" clearable>
           <template v-slot:append><q-icon name="search" /></template>
         </q-input>
       </q-card-section>
@@ -258,7 +258,74 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+    <!-- DIALOG: CAMBIAR CONTRASENA -->
+    <q-dialog v-model="passwordDialog" persistent>
+      <q-card style="width: 430px; max-width: 95vw">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-subtitle1 text-weight-bold">
+            Cambiar contrasena de {{ user.username || 'usuario' }}
+          </div>
+          <q-space />
+          <q-btn icon="close" flat round dense @click="closePasswordDialog" />
+        </q-card-section>
 
+        <q-card-section class="q-pt-sm">
+          <q-input
+            v-model="passwordForm.password"
+            label="Nueva contrasena"
+            dense
+            outlined
+            :type="showPasswordNew ? 'text' : 'password'"
+            :rules="[v => (v && v.length >= 6) || 'Minimo 6 caracteres']"
+            class="q-mb-sm"
+          >
+            <template #append>
+              <q-btn
+                dense
+                flat
+                round
+                type="button"
+                :icon="showPasswordNew ? 'visibility' : 'visibility_off'"
+                @click="showPasswordNew = !showPasswordNew"
+              />
+            </template>
+          </q-input>
+
+          <q-input
+            v-model="passwordForm.password_confirmation"
+            label="Confirmar contrasena"
+            dense
+            outlined
+            :type="showPasswordConfirm ? 'text' : 'password'"
+            :rules="[
+              v => !!v || 'Requerido',
+              v => v === passwordForm.password || 'No coincide'
+            ]"
+            class="q-mb-md"
+          >
+            <template #append>
+              <q-btn
+                dense
+                flat
+                round
+                type="button"
+                :icon="showPasswordConfirm ? 'visibility' : 'visibility_off'"
+                @click="showPasswordConfirm = !showPasswordConfirm"
+              />
+            </template>
+          </q-input>
+
+          <q-banner dense rounded class="bg-grey-1 q-mb-sm">
+            Se actualizara password y clave para este usuario.
+          </q-banner>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn color="negative" label="Cancelar" no-caps flat @click="closePasswordDialog" :disable="loading" />
+          <q-btn color="primary" label="Guardar" no-caps @click="passwordPut" :loading="loading" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -298,7 +365,16 @@ export default {
       permFilter: '',
 
       // avatar
-      cambioAvatarDialogo: false
+      cambioAvatarDialogo: false,
+
+      // password
+      passwordDialog: false,
+      showPasswordNew: false,
+      showPasswordConfirm: false,
+      passwordForm: {
+        password: '',
+        password_confirmation: ''
+      }
     }
   },
 
@@ -394,17 +470,44 @@ export default {
 
     userEditPassword (u) {
       this.user = { ...u }
-      this.$alert.dialogPrompt('Nueva contraseña', 'Ingrese la nueva contraseña', 'password')
-        .onOk(password => {
-          this.loading = true
-          this.$axios.put(`updatePassword/${u.id}`, { password })
-            .then(() => {
-              this.$alert.success('Contraseña actualizada')
-              this.usersGet()
-            })
-            .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo actualizar'))
-            .finally(() => { this.loading = false })
+      this.passwordForm = {
+        password: '',
+        password_confirmation: ''
+      }
+      this.showPasswordNew = false
+      this.showPasswordConfirm = false
+      this.passwordDialog = true
+    },
+
+    closePasswordDialog () {
+      this.passwordDialog = false
+      this.passwordForm = {
+        password: '',
+        password_confirmation: ''
+      }
+      this.showPasswordNew = false
+      this.showPasswordConfirm = false
+    },
+
+    passwordPut () {
+      if (!this.passwordForm.password || this.passwordForm.password.length < 6) {
+        this.$alert.error('La contrasena debe tener minimo 6 caracteres')
+        return
+      }
+      if (this.passwordForm.password !== this.passwordForm.password_confirmation) {
+        this.$alert.error('La confirmacion no coincide')
+        return
+      }
+
+      this.loading = true
+      this.$axios.put(`updatePassword/${this.user.id}`, { password: this.passwordForm.password })
+        .then(() => {
+          this.$alert.success('Contrasena actualizada')
+          this.closePasswordDialog()
+          this.usersGet()
         })
+        .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo actualizar'))
+        .finally(() => { this.loading = false })
     },
 
     // Avatar
@@ -485,3 +588,6 @@ export default {
   background: #f6f7f9;
 }
 </style>
+
+
+

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <q-layout view="lHh Lpr lFf">
     <!-- HEADER -->
     <q-header class="bg-white text-black" bordered>
@@ -14,7 +14,7 @@
 
         <div class="row items-center q-gutter-sm">
           <div class="text-subtitle1 text-weight-medium" style="line-height: 0.9">
-            Dashboard de Tickets <br>
+            Torneo Ya <br>
             <q-badge color="warning" text-color="black" v-if="roleText" class="text-bold">
               {{ roleText }}
             </q-badge>
@@ -80,7 +80,7 @@
             </q-item>
 
             <q-separator />
-<!--            cambiar contrseña-->
+<!--            cambiar contrseÃ±a-->
             <q-item clickable v-close-popup @click="$router.push('/cambiar-contrasena')">
               <q-item-section avatar>
                 <q-icon name="vpn_key" />
@@ -117,12 +117,12 @@
           <q-avatar size="64px" class="q-mb-sm bg-white" rounded>
             <q-img src="/logo.png" width="90px" />
           </q-avatar>
-          <div class="text-weight-bold text-white">TICKETS</div>
-          <div class="text-caption text-white">Sistema de Gestión</div>
+          <div class="text-weight-bold text-white">TORNEO YA</div>
+          <div class="text-caption text-white">Crea tus torneos</div>
         </q-item-label>
 
         <q-item-label header class="q-px-md text-grey-3 q-mt-sm">
-          Módulos del Sistema
+          MÃ³dulos del Sistema
         </q-item-label>
 
         <!-- DASHBOARD -->
@@ -164,10 +164,10 @@
         </q-item>
 
         <!-- ========================= -->
-        <!-- GRADERÍAS (NUEVO MÓDULO) -->
+        <!-- GRADERÃAS (NUEVO MÃ“DULO) -->
         <!-- ========================= -->
 
-        <!-- MIS GRADERÍAS -->
+        <!-- MIS GRADERÃAS -->
         <q-item
           dense
           to="/mis-graderias"
@@ -182,11 +182,11 @@
             <q-icon name="stadium" class="text-white" />
           </q-item-section>
           <q-item-section>
-            <q-item-label class="text-white">Mis graderías</q-item-label>
+            <q-item-label class="text-white">Mis graderÃ­as</q-item-label>
           </q-item-section>
         </q-item>
 
-        <!-- CREAR GRADERÍA -->
+        <!-- CREAR GRADERÃA -->
         <q-item
           dense
           to="/mis-graderias/nueva"
@@ -201,10 +201,10 @@
             <q-icon name="add_box" class="text-white" />
           </q-item-section>
           <q-item-section>
-            <q-item-label class="text-white">Nueva gradería</q-item-label>
+            <q-item-label class="text-white">Nueva graderÃ­a</q-item-label>
           </q-item-section>
         </q-item>
-<!--        cambiar contraseña-->
+<!--        cambiar contraseÃ±a-->
         <q-item
           dense
           to="/cambiar-contrasena"
@@ -225,10 +225,10 @@
         <!-- FOOTER -->
         <div class="q-pa-md">
           <div class="text-white-7 text-caption">
-            Tickets v{{ $version }}
+            Torneo Ya v{{ $version }}
           </div>
           <div class="text-white-7 text-caption">
-            © {{ new Date().getFullYear() }} Sistema de Tickets
+            (c) {{ new Date().getFullYear() }} Torneo Ya
           </div>
         </div>
 
@@ -294,14 +294,14 @@ export default {
               this.$store.isLogged = false
               this.$store.user = {}
               this.$store.permissions = []
-              localStorage.removeItem('tokenSIL')
+              localStorage.removeItem('tokenTorneoya')
               this.$router.push('/login')
             })
             .catch(() => {
               this.$store.isLogged = false
               this.$store.user = {}
               this.$store.permissions = []
-              localStorage.removeItem('tokenSIL')
+              localStorage.removeItem('tokenTorneoya')
               this.$router.push('/login')
             })
         })
@@ -322,3 +322,6 @@ export default {
   border-radius: 10px;
 }
 </style>
+
+
+

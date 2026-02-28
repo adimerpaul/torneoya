@@ -6,10 +6,12 @@ use App\Http\Controllers\GraderiaController;
 use App\Http\Controllers\AsientoController;
 
 Route::post('/login', [App\Http\Controllers\UserController::class, 'login']);
+Route::post('/register', [App\Http\Controllers\UserController::class, 'register']);
 Route::get('/public/graderias/{code}', [GraderiaController::class, 'publicShowByCode']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/me/password', [App\Http\Controllers\UserController::class, 'changeMyPassword']);
+    Route::post('/me/password/update', [App\Http\Controllers\UserController::class, 'changeMyPasswordDialog']);
 
     // Admin resetea contraseña de otro usuario
     Route::post('/users/{user}/password-reset', [App\Http\Controllers\UserController::class, 'adminResetPassword']);

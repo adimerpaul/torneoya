@@ -47,7 +47,7 @@ export default defineBoot(({ app,router }) => {
     }
   }
 
-  const token = localStorage.getItem('tokenTicket')
+  const token = localStorage.getItem('tokenTorneoya')
   if (token) {
     app.config.globalProperties.$axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
     app.config.globalProperties.$axios.get('me').then(response => {
@@ -59,7 +59,7 @@ export default defineBoot(({ app,router }) => {
     }).catch(error => {
       console.log(error)
       router.push('/login')
-      localStorage.removeItem('tokenTicket')
+      localStorage.removeItem('tokenTorneoya')
       useCounterStore().isLogged = false
       // useCounterStore().permissions = []
       useCounterStore().user = {}

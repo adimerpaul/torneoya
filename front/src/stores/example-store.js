@@ -5,7 +5,7 @@ export const useCounterStore = defineStore('counter', {
     counter: 0,
     user: {},
     socketAnalitica: false,
-    isLogged: localStorage.getItem('tokenTicket') ? true : false,
+    isLogged: localStorage.getItem('tokenTorneoya') ? true : false,
     permissions: [],
     menuEventosByPais: [],
   }),

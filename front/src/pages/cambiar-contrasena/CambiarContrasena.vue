@@ -5,9 +5,9 @@
         <q-card flat bordered>
           <q-card-section class="row items-center q-py-sm">
             <div>
-              <div class="text-h6 text-weight-bold">Cambiar contraseña</div>
+              <div class="text-h6 text-weight-bold">Cambiar contrasena</div>
               <div class="text-caption text-grey-7">
-                Al guardar se cerrarán todas las sesiones (incluyéndote).
+                Actualiza tu acceso de forma segura.
               </div>
             </div>
             <q-space />
@@ -17,40 +17,57 @@
           <q-separator />
 
           <q-card-section class="q-pa-md">
-            <q-form @submit.prevent="submit">
+            <q-form @submit.prevent="openConfirmDialog">
               <q-input
                 v-model="form.current_password"
-                dense outlined
+                dense
+                outlined
                 :type="showCurrent ? 'text' : 'password'"
-                label="Contraseña actual"
+                label="Contrasena actual"
                 autocomplete="current-password"
                 class="q-mb-sm"
                 :rules="[v => !!v || 'Requerido']"
               >
                 <template #append>
-                  <q-btn dense flat round :icon="showCurrent ? 'visibility' : 'visibility_off'" @click="showCurrent = !showCurrent" />
+                  <q-btn
+                    dense
+                    flat
+                    round
+                    type="button"
+                    :icon="showCurrent ? 'visibility' : 'visibility_off'"
+                    @click="showCurrent = !showCurrent"
+                  />
                 </template>
               </q-input>
 
               <q-input
                 v-model="form.password"
-                dense outlined
+                dense
+                outlined
                 :type="showNew ? 'text' : 'password'"
-                label="Nueva contraseña"
+                label="Nueva contrasena"
                 autocomplete="new-password"
                 class="q-mb-sm"
-                :rules="[v => (v && v.length >= 6) || 'Mínimo 6 caracteres']"
+                :rules="[v => (v && v.length >= 6) || 'Minimo 6 caracteres']"
               >
                 <template #append>
-                  <q-btn dense flat round :icon="showNew ? 'visibility' : 'visibility_off'" @click="showNew = !showNew" />
+                  <q-btn
+                    dense
+                    flat
+                    round
+                    type="button"
+                    :icon="showNew ? 'visibility' : 'visibility_off'"
+                    @click="showNew = !showNew"
+                  />
                 </template>
               </q-input>
 
               <q-input
                 v-model="form.password_confirmation"
-                dense outlined
+                dense
+                outlined
                 :type="showConfirm ? 'text' : 'password'"
-                label="Confirmar nueva contraseña"
+                label="Confirmar nueva contrasena"
                 autocomplete="new-password"
                 class="q-mb-md"
                 :rules="[
@@ -59,14 +76,19 @@
                 ]"
               >
                 <template #append>
-                  <q-btn dense flat round :icon="showConfirm ? 'visibility' : 'visibility_off'" @click="showConfirm = !showConfirm" />
+                  <q-btn
+                    dense
+                    flat
+                    round
+                    type="button"
+                    :icon="showConfirm ? 'visibility' : 'visibility_off'"
+                    @click="showConfirm = !showConfirm"
+                  />
                 </template>
               </q-input>
 
-              <q-banner dense class="bg-grey-1 q-mb-md">
-                <div class="text-caption text-grey-7">
-                  Nota: al cambiar la contraseña, se eliminarán todos los tokens de Sanctum para evitar sesiones abiertas.
-                </div>
+              <q-banner dense class="bg-grey-1 q-mb-md" rounded>
+                Se guardara en password (encriptado) y en clave. Luego cerraras sesion por seguridad.
               </q-banner>
 
               <div class="row q-col-gutter-sm">
@@ -76,7 +98,7 @@
                     no-caps
                     color="primary"
                     icon="save"
-                    label="Guardar"
+                    label="Cambiar contrasena"
                     type="submit"
                     :loading="loading"
                   />
@@ -99,6 +121,29 @@
         </q-card>
       </div>
     </div>
+
+    <q-dialog v-model="confirmDialog" persistent>
+      <q-card style="min-width: 340px; max-width: 460px; width: 92vw;">
+        <q-card-section class="row items-center q-pb-sm">
+          <q-icon name="lock_reset" color="primary" size="24px" class="q-mr-sm" />
+          <div class="text-subtitle1 text-weight-medium">Cambiar contrasena</div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <div class="text-body2 q-mb-sm">
+            Estas por actualizar tu contrasena.
+          </div>
+          <div class="text-caption text-grey-7">
+            Se guardara en password y clave. Despues se cerrara tu sesion para que vuelvas a entrar.
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat no-caps label="Cancelar" color="grey-8" v-close-popup :disable="loading" />
+          <q-btn unelevated no-caps label="Confirmar cambio" color="primary" :loading="loading" @click="submit" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -108,6 +153,7 @@ export default {
   data () {
     return {
       loading: false,
+      confirmDialog: false,
       showCurrent: false,
       showNew: false,
       showConfirm: false,
@@ -119,22 +165,34 @@ export default {
     }
   },
   methods: {
+    openConfirmDialog () {
+      if (!this.form.current_password || !this.form.password || !this.form.password_confirmation) {
+        this.$alert.error('Completa todos los campos')
+        return
+      }
+      if (this.form.password !== this.form.password_confirmation) {
+        this.$alert.error('La confirmacion no coincide')
+        return
+      }
+      this.confirmDialog = true
+    },
     async submit () {
       this.loading = true
       try {
-        await this.$axios.post('/me/password', this.form)
+        await this.$axios.post('/me/password/update', this.form)
 
-        // ✅ como el backend revocó todos los tokens, este token ya no sirve
-        this.$alert.success('Contraseña actualizada. Inicia sesión nuevamente.')
+        this.$alert.success('Contrasena actualizada. Inicia sesion nuevamente.')
+        this.confirmDialog = false
 
         this.$store.isLogged = false
         this.$store.user = {}
         this.$store.permissions = []
-        localStorage.removeItem('tokenSIL')
+        localStorage.removeItem('tokenTicket')
+        localStorage.removeItem('user')
 
         this.$router.push('/login')
       } catch (e) {
-        this.$alert.error(e.response?.data?.message || 'No se pudo cambiar la contraseña')
+        this.$alert.error(e.response?.data?.message || 'No se pudo cambiar la contrasena')
       } finally {
         this.loading = false
       }
