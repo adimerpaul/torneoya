@@ -26,7 +26,34 @@
               @update:model-value="toggleAgrupar"
             />
           </div>
-          <div class="col-12 col-md-4 text-right">
+          <div class="col-12 col-md-4 text-right row justify-end q-gutter-sm">
+            <q-btn color="primary" icon="refresh" no-caps label="Actualizar" @click="cargar" :loading="btnLoading.refresh" />
+            <q-btn-dropdown
+              color="deep-purple"
+              icon="picture_as_pdf"
+              no-caps
+              label="Reportes PDF"
+              :disable="btnLoading.report"
+            >
+              <q-list>
+                <q-item clickable v-close-popup @click="downloadReport('tabla_posiciones')">
+                  <q-item-section avatar><q-icon name="table_chart" /></q-item-section>
+                  <q-item-section>Tabla de posiciones</q-item-section>
+                </q-item>
+                <q-item clickable v-close-popup @click="downloadReport('partidos_fase')">
+                  <q-item-section avatar><q-icon name="sports_soccer" /></q-item-section>
+                  <q-item-section>Partidos de la fase</q-item-section>
+                </q-item>
+                <q-separator />
+                <q-item clickable v-close-popup @click="downloadReport('ranking_total')"><q-item-section>Ranking general</q-item-section></q-item>
+                <q-item clickable v-close-popup @click="downloadReport('ranking_goles')"><q-item-section>Ranking de goles</q-item-section></q-item>
+                <q-item clickable v-close-popup @click="downloadReport('ranking_faltas')"><q-item-section>Ranking de faltas</q-item-section></q-item>
+                <q-item clickable v-close-popup @click="downloadReport('ranking_amarillas')"><q-item-section>Ranking de amarillas</q-item-section></q-item>
+                <q-item clickable v-close-popup @click="downloadReport('ranking_rojas')"><q-item-section>Ranking de rojas</q-item-section></q-item>
+                <q-item clickable v-close-popup @click="downloadReport('ranking_sustituciones')"><q-item-section>Ranking de sustituciones</q-item-section></q-item>
+                <q-item clickable v-close-popup @click="downloadReport('ranking_porteros')"><q-item-section>Ranking de porteros</q-item-section></q-item>
+              </q-list>
+            </q-btn-dropdown>
             <q-btn v-if="canEdit" color="indigo" icon="add_circle" no-caps label="Nueva fase" @click="abrirFaseDialog" :loading="btnLoading.fase" />
           </div>
         </q-card-section>
@@ -699,7 +726,9 @@ export default {
         generar: false,
         partido: false,
         editar: false,
-        incidencia: false
+        incidencia: false,
+        refresh: false,
+        report: false
       },
       newMessage: '',
       sendingMessage: false
@@ -1002,6 +1031,7 @@ export default {
       }
     },
     cargar () {
+      this.btnLoading.refresh = true
       this.$axios.get(`public/campeonatos/${this.code}/clasificacion`)
         .then(r => {
           const prevId = this.faseId
@@ -1012,6 +1042,32 @@ export default {
           this.partidoForm.campeonato_fase_id = this.faseId
         })
         .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo cargar clasificacion'))
+        .finally(() => { this.btnLoading.refresh = false })
+    },
+    downloadBlob (blob, filename) {
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    },
+    downloadReport (type) {
+      this.btnLoading.report = true
+      const params = { type }
+      if (this.faseId) params.fase_id = this.faseId
+      this.$axios.get(`public/campeonatos/${this.code}/reportes/pdf`, {
+        params,
+        responseType: 'blob'
+      })
+        .then((res) => {
+          const ext = (this.activeFase?.nombre || 'fase').toString().replace(/\s+/g, '_')
+          this.downloadBlob(res.data, `reporte_${type}_${ext}.pdf`)
+        })
+        .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo generar PDF'))
+        .finally(() => { this.btnLoading.report = false })
     },
     toggleAgrupar (value) {
       if (!this.activeFase || !this.canEdit) return

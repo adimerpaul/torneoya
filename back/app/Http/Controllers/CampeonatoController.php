@@ -16,6 +16,7 @@ use App\Models\CampeonatoPartidoPortero;
 use App\Models\CampeonatoPartidoSustitucion;
 use App\Models\CampeonatoPartidoTarjetaAmarilla;
 use App\Models\CampeonatoPartidoTarjetaRoja;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Intervention\Image\Drivers\Gd\Driver;
@@ -47,6 +48,23 @@ class CampeonatoController extends Controller
             ->save($path);
 
         return $filename;
+    }
+
+    private function imageDataUri(?string $filename): ?string
+    {
+        if (!$filename) return null;
+        $path = public_path('images/' . $filename);
+        if (!is_file($path)) return null;
+        $ext = Str::lower(pathinfo($path, PATHINFO_EXTENSION));
+        $mime = match ($ext) {
+            'png' => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            default => 'image/webp',
+        };
+        $data = @file_get_contents($path);
+        if ($data === false) return null;
+        return 'data:' . $mime . ';base64,' . base64_encode($data);
     }
 
     private function canAccess(Request $request, Campeonato $campeonato): bool
@@ -539,20 +557,21 @@ class CampeonatoController extends Controller
         $rows[$key]['total'] += $value;
     }
 
-    public function rankingPublic(string $code)
+    private function buildRankingStats(Campeonato $campeonato, ?int $faseId = null): array
     {
-        $campeonato = Campeonato::where('codigo', strtoupper($code))->first();
-        if (!$campeonato) {
-            return response()->json(['message' => 'Codigo no encontrado'], 404);
-        }
-
         $rows = [];
+        $withFase = function ($q) use ($faseId) {
+            if ($faseId) {
+                $q->where('p.campeonato_fase_id', $faseId);
+            }
+        };
 
         $goles = CampeonatoPartidoGol::query()
             ->join('campeonato_partidos as p', 'p.id', '=', 'campeonato_partido_goles.campeonato_partido_id')
             ->leftJoin('campeonato_jugadores as j', 'j.id', '=', 'campeonato_partido_goles.jugador_id')
             ->leftJoin('campeonato_equipos as e', 'e.id', '=', 'campeonato_partido_goles.equipo_id')
             ->where('p.campeonato_id', $campeonato->id)
+            ->where($withFase)
             ->select([
                 'campeonato_partido_goles.jugador_id',
                 'campeonato_partido_goles.equipo_id',
@@ -569,6 +588,7 @@ class CampeonatoController extends Controller
             ->leftJoin('campeonato_jugadores as j', 'j.id', '=', 'campeonato_partido_faltas.jugador_id')
             ->leftJoin('campeonato_equipos as e', 'e.id', '=', 'campeonato_partido_faltas.equipo_id')
             ->where('p.campeonato_id', $campeonato->id)
+            ->where($withFase)
             ->select([
                 'campeonato_partido_faltas.jugador_id',
                 'campeonato_partido_faltas.equipo_id',
@@ -585,6 +605,7 @@ class CampeonatoController extends Controller
             ->leftJoin('campeonato_jugadores as j', 'j.id', '=', 'campeonato_partido_tarjetas_amarillas.jugador_id')
             ->leftJoin('campeonato_equipos as e', 'e.id', '=', 'campeonato_partido_tarjetas_amarillas.equipo_id')
             ->where('p.campeonato_id', $campeonato->id)
+            ->where($withFase)
             ->select([
                 'campeonato_partido_tarjetas_amarillas.jugador_id',
                 'campeonato_partido_tarjetas_amarillas.equipo_id',
@@ -601,6 +622,7 @@ class CampeonatoController extends Controller
             ->leftJoin('campeonato_jugadores as j', 'j.id', '=', 'campeonato_partido_tarjetas_rojas.jugador_id')
             ->leftJoin('campeonato_equipos as e', 'e.id', '=', 'campeonato_partido_tarjetas_rojas.equipo_id')
             ->where('p.campeonato_id', $campeonato->id)
+            ->where($withFase)
             ->select([
                 'campeonato_partido_tarjetas_rojas.jugador_id',
                 'campeonato_partido_tarjetas_rojas.equipo_id',
@@ -618,6 +640,7 @@ class CampeonatoController extends Controller
             ->leftJoin('campeonato_jugadores as je', 'je.id', '=', 'campeonato_partido_sustituciones.jugador_entra_id')
             ->leftJoin('campeonato_equipos as e', 'e.id', '=', 'campeonato_partido_sustituciones.equipo_id')
             ->where('p.campeonato_id', $campeonato->id)
+            ->where($withFase)
             ->select([
                 'campeonato_partido_sustituciones.equipo_id',
                 'campeonato_partido_sustituciones.jugador_sale_id',
@@ -644,6 +667,7 @@ class CampeonatoController extends Controller
             ->leftJoin('campeonato_jugadores as j', 'j.id', '=', 'campeonato_partido_porteros.jugador_id')
             ->leftJoin('campeonato_equipos as e', 'e.id', '=', 'campeonato_partido_porteros.equipo_id')
             ->where('p.campeonato_id', $campeonato->id)
+            ->where($withFase)
             ->select([
                 'campeonato_partido_porteros.jugador_id',
                 'campeonato_partido_porteros.equipo_id',
@@ -674,10 +698,181 @@ class CampeonatoController extends Controller
             'porteros' => array_sum(array_column($out, 'porteros')),
         ];
 
-        return response()->json([
+        return [
             'rows' => $out,
             'resumen' => $resumen,
-        ]);
+        ];
+    }
+
+    public function rankingPublic(Request $request, string $code)
+    {
+        $campeonato = Campeonato::where('codigo', strtoupper($code))->first();
+        if (!$campeonato) {
+            return response()->json(['message' => 'Codigo no encontrado'], 404);
+        }
+
+        $faseId = $request->query('fase_id') ? (int)$request->query('fase_id') : null;
+        if ($faseId) {
+            $exists = CampeonatoFase::where('campeonato_id', $campeonato->id)->where('id', $faseId)->exists();
+            if (!$exists) {
+                return response()->json(['message' => 'Fase no pertenece al campeonato'], 422);
+            }
+        }
+
+        return response()->json($this->buildRankingStats($campeonato, $faseId));
+    }
+
+    public function reportePdfPublic(Request $request, string $code)
+    {
+        $campeonato = Campeonato::with('user:id,name,username')->where('codigo', strtoupper($code))->first();
+        if (!$campeonato) {
+            return response()->json(['message' => 'Codigo no encontrado'], 404);
+        }
+
+        $type = $request->query('type', 'tabla_posiciones');
+        $faseId = $request->query('fase_id') ? (int)$request->query('fase_id') : null;
+        $allowed = [
+            'tabla_posiciones',
+            'partidos_fase',
+            'ranking_total',
+            'ranking_goles',
+            'ranking_faltas',
+            'ranking_amarillas',
+            'ranking_rojas',
+            'ranking_sustituciones',
+            'ranking_porteros',
+        ];
+        if (!in_array($type, $allowed, true)) {
+            return response()->json(['message' => 'Tipo de reporte no valido'], 422);
+        }
+
+        $fases = CampeonatoFase::where('campeonato_id', $campeonato->id)->orderBy('orden')->get();
+        $fase = null;
+        if ($faseId) {
+            $fase = $fases->firstWhere('id', $faseId);
+            if (!$fase) {
+                return response()->json(['message' => 'Fase no pertenece al campeonato'], 422);
+            }
+        } else {
+            $fase = $fases->first();
+            $faseId = $fase?->id;
+        }
+
+        $creator = $campeonato->user?->name ?: ($campeonato->user?->username ?: 'Sin creador');
+        $equipos = CampeonatoEquipo::where('campeonato_id', $campeonato->id)->get(['id', 'nombre', 'imagen']);
+        $equipoMap = [];
+        foreach ($equipos as $eq) {
+            $equipoMap[(int)$eq->id] = ['nombre' => $eq->nombre, 'imagen' => $eq->imagen];
+        }
+        $teamCell = function ($equipoId, $fallbackName = '') use ($equipoMap) {
+            $id = (int)($equipoId ?: 0);
+            $nombre = $fallbackName ?: ($equipoMap[$id]['nombre'] ?? 'Sin equipo');
+            $file = $equipoMap[$id]['imagen'] ?? self::DEFAULT_IMAGE;
+            return [
+                'image' => $this->imageDataUri($file) ?: $this->imageDataUri(self::DEFAULT_IMAGE),
+                'text' => $nombre,
+            ];
+        };
+        $context = [
+            'campeonato' => $campeonato,
+            'creator' => $creator,
+            'fechaRango' => trim(($campeonato->fecha_inicio ?: '-') . ' a ' . ($campeonato->fecha_fin ?: '-')),
+            'type' => $type,
+            'fase' => $fase,
+            'generatedAt' => now()->format('Y-m-d H:i'),
+            'title' => 'Reporte',
+            'headers' => [],
+            'rows' => [],
+            'extra' => [],
+        ];
+
+        if ($type === 'tabla_posiciones') {
+            if (!$fase) return response()->json(['message' => 'No hay fases para generar reporte'], 422);
+            $context['title'] = 'Tabla de posiciones - ' . $fase->nombre;
+            $context['headers'] = ['Grupo', 'Pos', 'Equipo', 'Pts', 'PJ', 'PG', 'PE', 'PP', 'GF', 'GC', 'DIF', '%'];
+            $tabla = $this->standingsForFase($campeonato, $fase);
+            foreach ($tabla as $g) {
+                foreach (($g['rows'] ?? []) as $idx => $r) {
+                    $context['rows'][] = [
+                        $g['grupo'] ?? 'General',
+                        $idx + 1,
+                        $teamCell($r['equipo_id'] ?? null, $r['equipo'] ?? ''),
+                        $r['pts'] ?? 0,
+                        $r['pj'] ?? 0,
+                        $r['pg'] ?? 0,
+                        $r['pe'] ?? 0,
+                        $r['pp'] ?? 0,
+                        $r['gf'] ?? 0,
+                        $r['gc'] ?? 0,
+                        $r['dif'] ?? 0,
+                        $r['porcentaje'] ?? 0,
+                    ];
+                }
+            }
+        } elseif ($type === 'partidos_fase') {
+            if (!$fase) return response()->json(['message' => 'No hay fases para generar reporte'], 422);
+            $context['title'] = 'Partidos por fase - ' . $fase->nombre;
+            $context['headers'] = ['Grupo', 'Local', 'Marcador', 'Visita', 'Estado', 'Programado'];
+            $partidos = CampeonatoPartido::where('campeonato_id', $campeonato->id)
+                ->where('campeonato_fase_id', $fase->id)
+                ->with(['local:id,nombre', 'visita:id,nombre'])
+                ->orderBy('grupo_nombre')
+                ->orderBy('id')
+                ->get();
+            foreach ($partidos as $p) {
+                $context['rows'][] = [
+                    $p->grupo_nombre ?: 'General',
+                    $teamCell($p->local_equipo_id, $p->local?->nombre ?: 'Pendiente'),
+                    ($p->goles_local ?? '-') . ':' . ($p->goles_visita ?? '-'),
+                    $teamCell($p->visita_equipo_id, $p->visita?->nombre ?: 'Pendiente'),
+                    $p->estado ?: 'no_realizado',
+                    $p->programado_at ? (string)$p->programado_at : 'Sin fecha',
+                ];
+            }
+        } else {
+            $stats = $this->buildRankingStats($campeonato, $faseId);
+            $metricMap = [
+                'ranking_total' => 'total',
+                'ranking_goles' => 'goles',
+                'ranking_faltas' => 'faltas',
+                'ranking_amarillas' => 'amarillas',
+                'ranking_rojas' => 'rojas',
+                'ranking_sustituciones' => 'sustituciones',
+                'ranking_porteros' => 'porteros',
+            ];
+            $metric = $metricMap[$type] ?? 'total';
+            $labelMap = [
+                'total' => 'Total',
+                'goles' => 'Goles',
+                'faltas' => 'Faltas',
+                'amarillas' => 'Amarillas',
+                'rojas' => 'Rojas',
+                'sustituciones' => 'Sustituciones',
+                'porteros' => 'Porteros',
+            ];
+            $context['title'] = 'Ranking de ' . ($labelMap[$metric] ?? 'Total');
+            if ($fase) $context['title'] .= ' - ' . $fase->nombre;
+            $context['headers'] = ['#', 'Jugador', 'Equipo', $labelMap[$metric] ?? 'Valor', 'Total'];
+
+            $rows = $stats['rows'] ?? [];
+            usort($rows, function ($a, $b) use ($metric) {
+                if (($a[$metric] ?? 0) !== ($b[$metric] ?? 0)) return ($b[$metric] ?? 0) <=> ($a[$metric] ?? 0);
+                return ($b['total'] ?? 0) <=> ($a['total'] ?? 0);
+            });
+            foreach ($rows as $idx => $r) {
+                $context['rows'][] = [
+                    $idx + 1,
+                    $r['jugador'] ?? 'Sin jugador',
+                    $teamCell($r['equipo_id'] ?? null, $r['equipo'] ?? 'Sin equipo'),
+                    $r[$metric] ?? 0,
+                    $r['total'] ?? 0,
+                ];
+            }
+            $context['extra'] = $stats['resumen'] ?? [];
+        }
+
+        $pdf = Pdf::loadView('reports.campeonato', $context)->setPaper('a4', 'portrait');
+        return $pdf->download('reporte_' . $campeonato->codigo . '_' . $type . '.pdf');
     }
 
     public function fasesIndex(Request $request, Campeonato $campeonato)

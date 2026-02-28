@@ -82,7 +82,11 @@
             />
           </q-banner>
 
-          <div class="text-subtitle1 text-weight-medium q-mb-sm text-cyan-2">Resumen</div>
+          <div class="row items-center q-mb-sm">
+            <div class="text-subtitle1 text-weight-medium text-cyan-2">Resumen</div>
+            <q-space />
+            <q-btn color="primary" text-color="white" no-caps icon="refresh" label="Actualizar" :loading="loading" @click="refreshInicio" />
+          </div>
           <q-card flat bordered class="q-mb-md bg-dark-card text-blue-1">
             <q-card-section>{{ campeonato.descripcion || 'Sin descripcion' }}</q-card-section>
           </q-card>
@@ -1063,6 +1067,10 @@ export default {
       this.$axios.patch(`campeonatos/${this.campeonato.id}/mensajes/${m.id}/visible`)
         .then(() => this.cargarMensajes())
         .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo cambiar visibilidad'))
+    },
+    refreshInicio () {
+      this.cargarCampeonato()
+      this.cargarMensajes()
     }
   }
 }

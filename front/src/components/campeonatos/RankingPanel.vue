@@ -2,6 +2,19 @@
   <div class="ranking-root" :class="{ 'mode-light': isLightMode }">
     <q-card flat bordered class="bg-dark-card q-mb-md" :class="{ 'text-white': !isLightMode }">
       <q-card-section class="row q-col-gutter-sm items-center">
+        <div class="col-12 col-md-3">
+          <q-select
+            v-model="faseId"
+            dense
+            outlined
+            emit-value
+            map-options
+            option-value="id"
+            option-label="label"
+            :options="faseOptions"
+            label="Fase"
+          />
+        </div>
         <div class="col-12 col-md-4">
           <q-select
             v-model="metric"
@@ -15,7 +28,7 @@
             label="Ordenar por"
           />
         </div>
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <q-select
             v-model="equipoFilter"
             dense
@@ -28,10 +41,13 @@
             label="Filtrar equipo"
           />
         </div>
-        <div class="col-12 col-md-4">
+        <div class="col-12 col-md-3">
           <q-input v-model="search" dense outlined label="Buscar jugador">
             <template #append><q-icon name="search" /></template>
           </q-input>
+        </div>
+        <div class="col-12 col-md-2 text-right">
+          <q-btn color="primary" no-caps icon="refresh" label="Actualizar" :loading="loading" @click="loadRanking" />
         </div>
       </q-card-section>
       <q-separator :dark="!isLightMode" />
@@ -91,6 +107,8 @@ export default {
       rows: [],
       resumen: {},
       search: '',
+      faseId: 0,
+      faseOptions: [{ id: 0, label: 'Todas las fases' }],
       metric: 'goles',
       equipoFilter: 0,
       metricOptions: [
@@ -152,17 +170,38 @@ export default {
     }
   },
   mounted () {
-    this.loadRanking()
+    this.loadFases().finally(() => this.loadRanking())
   },
   watch: {
     code () {
+      this.loadFases().finally(() => this.loadRanking())
+    },
+    faseId () {
       this.loadRanking()
     }
   },
   methods: {
+    loadFases () {
+      return this.$axios.get(`public/campeonatos/${this.code}/clasificacion`)
+        .then(r => {
+          const fases = r.data || []
+          this.faseOptions = [{ id: 0, label: 'Todas las fases' }].concat(
+            fases.map(f => ({
+              id: Number(f.id),
+              label: `${f.nombre} (${f.tipo === 'eliminatoria' ? 'eliminatoria' : 'todos contra todos'})`
+            }))
+          )
+        })
+        .catch(() => {
+          this.faseOptions = [{ id: 0, label: 'Todas las fases' }]
+          this.faseId = 0
+        })
+    },
     loadRanking () {
       this.loading = true
-      this.$axios.get(`public/campeonatos/${this.code}/ranking`)
+      const params = {}
+      if (this.faseId) params.fase_id = this.faseId
+      this.$axios.get(`public/campeonatos/${this.code}/ranking`, { params })
         .then(r => {
           this.rows = r.data?.rows || []
           this.resumen = r.data?.resumen || {}
@@ -188,4 +227,3 @@ export default {
   border-color: #dbe4f0;
 }
 </style>
-
