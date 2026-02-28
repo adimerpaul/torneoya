@@ -19,6 +19,7 @@ use App\Models\CampeonatoPartidoTarjetaRoja;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Intervention\Image\Drivers\Gd\Driver;
 use Intervention\Image\ImageManager;
 
@@ -102,6 +103,90 @@ class CampeonatoController extends Controller
             ->withCount('categorias')
             ->orderBy('id', 'desc')
             ->get();
+    }
+
+    public function dashboard(Request $request)
+    {
+        $userId = (int)$request->user()->id;
+
+        $campeonatoIds = Campeonato::where('user_id', $userId)->pluck('id');
+        $parentCampeonatoIds = Campeonato::where('user_id', $userId)->whereNull('parent_id')->pluck('id');
+
+        $totals = [
+            'campeonatos' => Campeonato::where('user_id', $userId)->whereNull('parent_id')->count(),
+            'categorias' => Campeonato::where('user_id', $userId)->whereNotNull('parent_id')->count(),
+            'equipos' => CampeonatoEquipo::whereIn('campeonato_id', $campeonatoIds)->count(),
+            'jugadores' => CampeonatoJugador::whereIn(
+                'campeonato_equipo_id',
+                CampeonatoEquipo::whereIn('campeonato_id', $campeonatoIds)->select('id')
+            )->count(),
+            'partidos' => CampeonatoPartido::whereIn('campeonato_id', $campeonatoIds)->count(),
+            'mensajes' => CampeonatoMensaje::whereIn('campeonato_id', $campeonatoIds)->count(),
+        ];
+
+        $incidencias = [
+            'goles' => CampeonatoPartidoGol::whereIn('campeonato_partido_id', CampeonatoPartido::whereIn('campeonato_id', $campeonatoIds)->select('id'))->count(),
+            'faltas' => CampeonatoPartidoFalta::whereIn('campeonato_partido_id', CampeonatoPartido::whereIn('campeonato_id', $campeonatoIds)->select('id'))->count(),
+            'amarillas' => CampeonatoPartidoTarjetaAmarilla::whereIn('campeonato_partido_id', CampeonatoPartido::whereIn('campeonato_id', $campeonatoIds)->select('id'))->count(),
+            'rojas' => CampeonatoPartidoTarjetaRoja::whereIn('campeonato_partido_id', CampeonatoPartido::whereIn('campeonato_id', $campeonatoIds)->select('id'))->count(),
+            'sustituciones' => CampeonatoPartidoSustitucion::whereIn('campeonato_partido_id', CampeonatoPartido::whereIn('campeonato_id', $campeonatoIds)->select('id'))->count(),
+            'porteros' => CampeonatoPartidoPortero::whereIn('campeonato_partido_id', CampeonatoPartido::whereIn('campeonato_id', $campeonatoIds)->select('id'))->count(),
+        ];
+        $totals['incidencias'] = array_sum($incidencias);
+
+        $deportes = Campeonato::query()
+            ->where('user_id', $userId)
+            ->whereNotNull('deporte')
+            ->select('deporte', DB::raw('COUNT(*) as total'))
+            ->groupBy('deporte')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($r) => [
+                'deporte' => $r->deporte,
+                'nombre' => Campeonato::deportesCatalogo()[$r->deporte]['nombre'] ?? $r->deporte,
+                'total' => (int)$r->total,
+            ])
+            ->values();
+
+        $meses = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $m = now()->subMonths($i);
+            $meses[$m->format('Y-m')] = [
+                'label' => $m->format('M Y'),
+                'value' => 0,
+            ];
+        }
+        $created = Campeonato::query()
+            ->whereIn('id', $parentCampeonatoIds)
+            ->where('created_at', '>=', now()->subMonths(6)->startOfMonth())
+            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as ym, COUNT(*) as total")
+            ->groupBy('ym')
+            ->pluck('total', 'ym');
+        foreach ($created as $ym => $count) {
+            if (isset($meses[$ym])) $meses[$ym]['value'] = (int)$count;
+        }
+
+        $recientesCampeonatos = Campeonato::query()
+            ->whereIn('id', $parentCampeonatoIds)
+            ->orderByDesc('id')
+            ->limit(6)
+            ->get(['id', 'nombre', 'tipo', 'deporte', 'codigo', 'created_at']);
+
+        $recientesPartidos = CampeonatoPartido::query()
+            ->whereIn('campeonato_id', $campeonatoIds)
+            ->with(['local:id,nombre', 'visita:id,nombre', 'fase:id,nombre'])
+            ->orderByDesc('id')
+            ->limit(6)
+            ->get();
+
+        return response()->json([
+            'totals' => $totals,
+            'incidencias' => $incidencias,
+            'deportes' => $deportes,
+            'campeonatos_por_mes' => array_values($meses),
+            'recientes_campeonatos' => $recientesCampeonatos,
+            'recientes_partidos' => $recientesPartidos,
+        ]);
     }
 
     public function store(Request $request)

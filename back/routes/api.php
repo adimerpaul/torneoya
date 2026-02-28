@@ -40,6 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/users/{user}/permissions', [App\Http\Controllers\UserController::class, 'updateUserPermissions']);
 
     Route::get('/deportes', [CampeonatoController::class, 'deportes']);
+    Route::get('/dashboard', [CampeonatoController::class, 'dashboard']);
     Route::get('/campeonatos', [CampeonatoController::class, 'index']);
     Route::post('/campeonatos', [CampeonatoController::class, 'store']);
     Route::put('/campeonatos/{campeonato}', [CampeonatoController::class, 'update']);
