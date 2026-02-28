@@ -883,11 +883,9 @@ export default {
     },
     formatPartidoSchedule (value) {
       if (!value) return 'Sin fecha'
-      const d = new Date(value)
-      if (Number.isNaN(d.getTime())) return 'Sin fecha'
-      const fecha = d.toLocaleDateString()
-      const hora = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      return `${fecha} ${hora}`
+      const n = this.normalizeDateTime(value)
+      if (!n.fecha) return 'Sin fecha'
+      return `${n.fecha} ${n.hora || '00:00'}`
     },
     buildProgramadoAt (fecha, hora) {
       if (!fecha) return null
@@ -895,19 +893,16 @@ export default {
       return `${fecha} ${hhmm}:00`
     },
     splitProgramadoAt (value) {
+      return this.normalizeDateTime(value)
+    },
+    normalizeDateTime (value) {
       if (!value) return { fecha: '', hora: '' }
-      const d = new Date(value)
-      if (!Number.isNaN(d.getTime())) {
-        const yyyy = d.getFullYear()
-        const mm = String(d.getMonth() + 1).padStart(2, '0')
-        const dd = String(d.getDate()).padStart(2, '0')
-        const hh = String(d.getHours()).padStart(2, '0')
-        const mi = String(d.getMinutes()).padStart(2, '0')
-        return { fecha: `${yyyy}-${mm}-${dd}`, hora: `${hh}:${mi}` }
-      }
-      const txt = String(value)
-      const [datePart, timePart = ''] = txt.split(' ')
-      return { fecha: datePart || '', hora: timePart.slice(0, 5) || '' }
+      const raw = String(value).trim()
+      const noMillis = raw.replace(/\.\d+/, '')
+      const clean = noMillis.replace('T', ' ').replace(/Z$/, '').replace(/[+-]\d{2}:\d{2}$/, '')
+      const [datePart = '', timePart = ''] = clean.split(' ')
+      const hora = (timePart || '').slice(0, 5)
+      return { fecha: datePart, hora }
     },
     estadoLabel (estado) {
       const map = {
