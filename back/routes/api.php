@@ -70,6 +70,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/campeonatos/{campeonato}/fases/{fase}/partidos', [CampeonatoController::class, 'partidosStore']);
     Route::put('/campeonatos/{campeonato}/partidos/{partido}', [CampeonatoController::class, 'partidosUpdate']);
     Route::delete('/campeonatos/{campeonato}/partidos/{partido}', [CampeonatoController::class, 'partidosDestroy']);
+    Route::get('/campeonatos/{campeonato}/partidos/{partido}/incidencias', [CampeonatoController::class, 'partidoIncidencias']);
+    Route::post('/campeonatos/{campeonato}/partidos/{partido}/goles', [CampeonatoController::class, 'partidoGolStore']);
+    Route::delete('/campeonatos/{campeonato}/partidos/{partido}/goles/{gol}', [CampeonatoController::class, 'partidoGolDestroy']);
+    Route::post('/campeonatos/{campeonato}/partidos/{partido}/amarillas', [CampeonatoController::class, 'partidoAmarillaStore']);
+    Route::delete('/campeonatos/{campeonato}/partidos/{partido}/amarillas/{amarilla}', [CampeonatoController::class, 'partidoAmarillaDestroy']);
+    Route::post('/campeonatos/{campeonato}/partidos/{partido}/rojas', [CampeonatoController::class, 'partidoRojaStore']);
+    Route::delete('/campeonatos/{campeonato}/partidos/{partido}/rojas/{roja}', [CampeonatoController::class, 'partidoRojaDestroy']);
+    Route::post('/campeonatos/{campeonato}/partidos/{partido}/faltas', [CampeonatoController::class, 'partidoFaltaStore']);
+    Route::delete('/campeonatos/{campeonato}/partidos/{partido}/faltas/{falta}', [CampeonatoController::class, 'partidoFaltaDestroy']);
+    Route::post('/campeonatos/{campeonato}/partidos/{partido}/sustituciones', [CampeonatoController::class, 'partidoSustitucionStore']);
+    Route::delete('/campeonatos/{campeonato}/partidos/{partido}/sustituciones/{sustitucion}', [CampeonatoController::class, 'partidoSustitucionDestroy']);
+    Route::post('/campeonatos/{campeonato}/partidos/{partido}/porteros', [CampeonatoController::class, 'partidoPorteroStore']);
+    Route::delete('/campeonatos/{campeonato}/partidos/{partido}/porteros/{portero}', [CampeonatoController::class, 'partidoPorteroDestroy']);
 
     Route::patch('/campeonatos/{campeonato}/mensajes/{mensaje}/visible', [CampeonatoController::class, 'mensajeToggleVisible']);
 

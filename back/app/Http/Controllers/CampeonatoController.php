@@ -10,6 +10,12 @@ use App\Models\CampeonatoGrupo;
 use App\Models\CampeonatoJugador;
 use App\Models\CampeonatoMensaje;
 use App\Models\CampeonatoPartido;
+use App\Models\CampeonatoPartidoFalta;
+use App\Models\CampeonatoPartidoGol;
+use App\Models\CampeonatoPartidoPortero;
+use App\Models\CampeonatoPartidoSustitucion;
+use App\Models\CampeonatoPartidoTarjetaAmarilla;
+use App\Models\CampeonatoPartidoTarjetaRoja;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Intervention\Image\Drivers\Gd\Driver;
@@ -415,6 +421,67 @@ class CampeonatoController extends Controller
         return $result;
     }
 
+    private function partidoIncidenciasPayload(CampeonatoPartido $partido): array
+    {
+        $partido->refresh();
+        $partido->load([
+            'goles.equipo:id,nombre',
+            'goles.jugador:id,nombre',
+            'tarjetasAmarillas.equipo:id,nombre',
+            'tarjetasAmarillas.jugador:id,nombre',
+            'tarjetasRojas.equipo:id,nombre',
+            'tarjetasRojas.jugador:id,nombre',
+            'faltas.equipo:id,nombre',
+            'faltas.jugador:id,nombre',
+            'sustituciones.equipo:id,nombre',
+            'sustituciones.jugadorSale:id,nombre',
+            'sustituciones.jugadorEntra:id,nombre',
+            'porteros.equipo:id,nombre',
+            'porteros.jugador:id,nombre',
+        ]);
+
+        return [
+            'goles_local' => $partido->goles_local,
+            'goles_visita' => $partido->goles_visita,
+            'goles' => $partido->goles,
+            'tarjetas_amarillas' => $partido->tarjetasAmarillas,
+            'tarjetas_rojas' => $partido->tarjetasRojas,
+            'faltas' => $partido->faltas,
+            'sustituciones' => $partido->sustituciones,
+            'porteros' => $partido->porteros,
+        ];
+    }
+
+    private function syncPartidoScoreFromGoals(CampeonatoPartido $partido): void
+    {
+        $partido->refresh();
+        $localId = (int) ($partido->local_equipo_id ?? 0);
+        $visitaId = (int) ($partido->visita_equipo_id ?? 0);
+
+        $local = 0;
+        $visita = 0;
+
+        if ($localId || $visitaId) {
+            $goals = CampeonatoPartidoGol::where('campeonato_partido_id', $partido->id)
+                ->whereNotNull('equipo_id')
+                ->pluck('equipo_id');
+
+            foreach ($goals as $equipoId) {
+                $eid = (int) $equipoId;
+                if ($localId && $eid === $localId) {
+                    $local++;
+                }
+                if ($visitaId && $eid === $visitaId) {
+                    $visita++;
+                }
+            }
+        }
+
+        $partido->goles_local = $local;
+        $partido->goles_visita = $visita;
+        $partido->save();
+    }
+
     public function clasificacionPublic(string $code)
     {
         $campeonato = Campeonato::where('codigo', strtoupper($code))->first();
@@ -604,6 +671,7 @@ class CampeonatoController extends Controller
 
         $validated = $request->validate([
             'campeonato_fecha_id' => 'nullable|integer|exists:campeonato_fechas,id',
+            'programado_at' => 'nullable|date',
             'local_equipo_id' => 'nullable|integer|exists:campeonato_equipos,id',
             'visita_equipo_id' => 'nullable|integer|exists:campeonato_equipos,id',
             'grupo_nombre' => 'nullable|string|max:120',
@@ -616,6 +684,7 @@ class CampeonatoController extends Controller
             'campeonato_id' => $campeonato->id,
             'campeonato_fase_id' => $fase->id,
             'campeonato_fecha_id' => $validated['campeonato_fecha_id'] ?? null,
+            'programado_at' => $validated['programado_at'] ?? null,
             'local_equipo_id' => $validated['local_equipo_id'] ?? null,
             'visita_equipo_id' => $validated['visita_equipo_id'] ?? null,
             'grupo_nombre' => $validated['grupo_nombre'] ?? null,
@@ -638,6 +707,7 @@ class CampeonatoController extends Controller
 
         $validated = $request->validate([
             'campeonato_fecha_id' => 'nullable|integer|exists:campeonato_fechas,id',
+            'programado_at' => 'nullable|date',
             'local_equipo_id' => 'nullable|integer|exists:campeonato_equipos,id',
             'visita_equipo_id' => 'nullable|integer|exists:campeonato_equipos,id',
             'grupo_nombre' => 'nullable|string|max:120',
@@ -662,6 +732,264 @@ class CampeonatoController extends Controller
 
         $partido->delete();
         return response()->json(['message' => 'Partido eliminado']);
+    }
+
+    public function partidoIncidencias(Request $request, Campeonato $campeonato, CampeonatoPartido $partido)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        return response()->json($this->partidoIncidenciasPayload($partido));
+    }
+
+    public function partidoGolStore(Request $request, Campeonato $campeonato, CampeonatoPartido $partido)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'equipo_id' => 'nullable|integer|exists:campeonato_equipos,id',
+            'jugador_id' => 'nullable|integer|exists:campeonato_jugadores,id',
+            'minuto' => 'nullable|integer|min:0|max:200',
+            'detalle' => 'nullable|string|max:180',
+        ]);
+
+        CampeonatoPartidoGol::create([
+            'campeonato_partido_id' => $partido->id,
+            'equipo_id' => $validated['equipo_id'] ?? null,
+            'jugador_id' => $validated['jugador_id'] ?? null,
+            'minuto' => $validated['minuto'] ?? null,
+            'detalle' => $validated['detalle'] ?? null,
+        ]);
+        $this->syncPartidoScoreFromGoals($partido);
+
+        return response()->json($this->partidoIncidenciasPayload($partido));
+    }
+
+    public function partidoGolDestroy(Request $request, Campeonato $campeonato, CampeonatoPartido $partido, int $gol)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        CampeonatoPartidoGol::where('campeonato_partido_id', $partido->id)->where('id', $gol)->delete();
+        $this->syncPartidoScoreFromGoals($partido);
+        return response()->json($this->partidoIncidenciasPayload($partido));
+    }
+
+    public function partidoAmarillaStore(Request $request, Campeonato $campeonato, CampeonatoPartido $partido)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'equipo_id' => 'nullable|integer|exists:campeonato_equipos,id',
+            'jugador_id' => 'nullable|integer|exists:campeonato_jugadores,id',
+            'minuto' => 'nullable|integer|min:0|max:200',
+            'detalle' => 'nullable|string|max:180',
+        ]);
+
+        CampeonatoPartidoTarjetaAmarilla::create([
+            'campeonato_partido_id' => $partido->id,
+            'equipo_id' => $validated['equipo_id'] ?? null,
+            'jugador_id' => $validated['jugador_id'] ?? null,
+            'minuto' => $validated['minuto'] ?? null,
+            'detalle' => $validated['detalle'] ?? null,
+        ]);
+
+        return response()->json($this->partidoIncidenciasPayload($partido));
+    }
+
+    public function partidoAmarillaDestroy(Request $request, Campeonato $campeonato, CampeonatoPartido $partido, int $amarilla)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        CampeonatoPartidoTarjetaAmarilla::where('campeonato_partido_id', $partido->id)->where('id', $amarilla)->delete();
+        return response()->json($this->partidoIncidenciasPayload($partido));
+    }
+
+    public function partidoRojaStore(Request $request, Campeonato $campeonato, CampeonatoPartido $partido)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'equipo_id' => 'nullable|integer|exists:campeonato_equipos,id',
+            'jugador_id' => 'nullable|integer|exists:campeonato_jugadores,id',
+            'minuto' => 'nullable|integer|min:0|max:200',
+            'detalle' => 'nullable|string|max:180',
+        ]);
+
+        CampeonatoPartidoTarjetaRoja::create([
+            'campeonato_partido_id' => $partido->id,
+            'equipo_id' => $validated['equipo_id'] ?? null,
+            'jugador_id' => $validated['jugador_id'] ?? null,
+            'minuto' => $validated['minuto'] ?? null,
+            'detalle' => $validated['detalle'] ?? null,
+        ]);
+
+        return response()->json($this->partidoIncidenciasPayload($partido));
+    }
+
+    public function partidoRojaDestroy(Request $request, Campeonato $campeonato, CampeonatoPartido $partido, int $roja)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        CampeonatoPartidoTarjetaRoja::where('campeonato_partido_id', $partido->id)->where('id', $roja)->delete();
+        return response()->json($this->partidoIncidenciasPayload($partido));
+    }
+
+    public function partidoFaltaStore(Request $request, Campeonato $campeonato, CampeonatoPartido $partido)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'equipo_id' => 'nullable|integer|exists:campeonato_equipos,id',
+            'jugador_id' => 'nullable|integer|exists:campeonato_jugadores,id',
+            'minuto' => 'nullable|integer|min:0|max:200',
+            'detalle' => 'nullable|string|max:180',
+        ]);
+
+        CampeonatoPartidoFalta::create([
+            'campeonato_partido_id' => $partido->id,
+            'equipo_id' => $validated['equipo_id'] ?? null,
+            'jugador_id' => $validated['jugador_id'] ?? null,
+            'minuto' => $validated['minuto'] ?? null,
+            'detalle' => $validated['detalle'] ?? null,
+        ]);
+
+        return response()->json($this->partidoIncidenciasPayload($partido));
+    }
+
+    public function partidoFaltaDestroy(Request $request, Campeonato $campeonato, CampeonatoPartido $partido, int $falta)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        CampeonatoPartidoFalta::where('campeonato_partido_id', $partido->id)->where('id', $falta)->delete();
+        return response()->json($this->partidoIncidenciasPayload($partido));
+    }
+
+    public function partidoSustitucionStore(Request $request, Campeonato $campeonato, CampeonatoPartido $partido)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'equipo_id' => 'nullable|integer|exists:campeonato_equipos,id',
+            'jugador_sale_id' => 'nullable|integer|exists:campeonato_jugadores,id',
+            'jugador_entra_id' => 'nullable|integer|exists:campeonato_jugadores,id',
+            'minuto' => 'nullable|integer|min:0|max:200',
+        ]);
+
+        CampeonatoPartidoSustitucion::create([
+            'campeonato_partido_id' => $partido->id,
+            'equipo_id' => $validated['equipo_id'] ?? null,
+            'jugador_sale_id' => $validated['jugador_sale_id'] ?? null,
+            'jugador_entra_id' => $validated['jugador_entra_id'] ?? null,
+            'minuto' => $validated['minuto'] ?? null,
+        ]);
+
+        return response()->json($this->partidoIncidenciasPayload($partido));
+    }
+
+    public function partidoSustitucionDestroy(Request $request, Campeonato $campeonato, CampeonatoPartido $partido, int $sustitucion)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        CampeonatoPartidoSustitucion::where('campeonato_partido_id', $partido->id)->where('id', $sustitucion)->delete();
+        return response()->json($this->partidoIncidenciasPayload($partido));
+    }
+
+    public function partidoPorteroStore(Request $request, Campeonato $campeonato, CampeonatoPartido $partido)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'equipo_id' => 'required|integer|exists:campeonato_equipos,id',
+            'jugador_id' => 'nullable|integer|exists:campeonato_jugadores,id',
+            'nombre_portero' => 'nullable|string|max:180',
+            'titular' => 'nullable|boolean',
+        ]);
+
+        CampeonatoPartidoPortero::updateOrCreate(
+            [
+                'campeonato_partido_id' => $partido->id,
+                'equipo_id' => $validated['equipo_id'],
+            ],
+            [
+                'jugador_id' => $validated['jugador_id'] ?? null,
+                'nombre_portero' => $validated['nombre_portero'] ?? null,
+                'titular' => (bool)($validated['titular'] ?? true),
+            ]
+        );
+
+        return response()->json($this->partidoIncidenciasPayload($partido));
+    }
+
+    public function partidoPorteroDestroy(Request $request, Campeonato $campeonato, CampeonatoPartido $partido, int $portero)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$partido->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Partido no pertenece al campeonato'], 422);
+        }
+
+        CampeonatoPartidoPortero::where('campeonato_partido_id', $partido->id)->where('id', $portero)->delete();
+        return response()->json($this->partidoIncidenciasPayload($partido));
     }
 
     public function gruposIndex(Request $request, Campeonato $campeonato)

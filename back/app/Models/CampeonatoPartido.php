@@ -15,12 +15,17 @@ class CampeonatoPartido extends Model
         'campeonato_id',
         'campeonato_fase_id',
         'campeonato_fecha_id',
+        'programado_at',
         'local_equipo_id',
         'visita_equipo_id',
         'grupo_nombre',
         'goles_local',
         'goles_visita',
         'estado',
+    ];
+
+    protected $casts = [
+        'programado_at' => 'datetime',
     ];
 
     public function fase()
@@ -42,5 +47,34 @@ class CampeonatoPartido extends Model
     {
         return $this->belongsTo(CampeonatoEquipo::class, 'visita_equipo_id');
     }
-}
 
+    public function goles()
+    {
+        return $this->hasMany(CampeonatoPartidoGol::class, 'campeonato_partido_id')->orderBy('minuto');
+    }
+
+    public function tarjetasAmarillas()
+    {
+        return $this->hasMany(CampeonatoPartidoTarjetaAmarilla::class, 'campeonato_partido_id')->orderBy('minuto');
+    }
+
+    public function tarjetasRojas()
+    {
+        return $this->hasMany(CampeonatoPartidoTarjetaRoja::class, 'campeonato_partido_id')->orderBy('minuto');
+    }
+
+    public function faltas()
+    {
+        return $this->hasMany(CampeonatoPartidoFalta::class, 'campeonato_partido_id')->orderBy('minuto');
+    }
+
+    public function sustituciones()
+    {
+        return $this->hasMany(CampeonatoPartidoSustitucion::class, 'campeonato_partido_id')->orderBy('minuto');
+    }
+
+    public function porteros()
+    {
+        return $this->hasMany(CampeonatoPartidoPortero::class, 'campeonato_partido_id');
+    }
+}

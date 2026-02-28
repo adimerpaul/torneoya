@@ -75,8 +75,8 @@
               v-if="$store?.isLogged"
               color="indigo-9"
               text-color="white"
+              class="q-ml-sm btn-parent-back"
               no-caps
-              class="q-ml-sm"
               label="Volver al campeonato principal"
               @click="goToPadre"
             />
@@ -471,35 +471,60 @@
               {{ (selectedEquipo?.jugadores || []).length }} jugadores
             </q-chip>
             <q-space />
-            <q-btn color="primary" no-caps icon="person_add" label="Agregar jugador" @click="openJugadorFormDialog()" />
+            <q-btn
+              color="primary"
+              no-caps
+              icon="person_add"
+              label="Agregar jugador"
+              :loading="jugadorSaving"
+              :disable="playersLoading || jugadorSaving"
+              @click="openJugadorFormDialog()"
+            />
             <q-btn flat round dense icon="close" @click="jugadorDialog = false" />
           </q-card-section>
           <q-card-section>
-            <q-list bordered separator>
-              <q-item v-for="j in (selectedEquipo?.jugadores || [])" :key="j.id">
-                <q-item-section avatar class="q-pr-sm">
-                  <q-btn-dropdown label="Opciones" no-caps size="10px" dense color="primary">
+            <q-table
+              :rows="selectedEquipo?.jugadores || []"
+              :columns="jugadoresColumns"
+              row-key="id"
+              flat
+              bordered
+              dense
+              :loading="playersLoading"
+              :rows-per-page-options="[0]"
+              no-data-label="No hay jugadores registrados"
+            >
+              <template #body-cell-actions="props">
+                <q-td :props="props" class="text-left">
+                  <q-btn-dropdown
+                    label="Opciones"
+                    no-caps
+                    size="10px"
+                    dense
+                    color="primary"
+                    :disable="jugadorSaving || playersLoading"
+                  >
                     <q-list>
-                      <q-item clickable v-close-popup @click="openJugadorFormDialog(j)">
+                      <q-item clickable v-close-popup @click="openJugadorFormDialog(props.row)">
                         <q-item-section avatar><q-icon name="edit" /></q-item-section>
                         <q-item-section><q-item-label>Editar</q-item-label></q-item-section>
                       </q-item>
-                      <q-item clickable v-close-popup @click="eliminarJugador(j)">
+                      <q-item clickable v-close-popup @click="eliminarJugador(props.row)">
                         <q-item-section avatar><q-icon name="delete" /></q-item-section>
                         <q-item-section><q-item-label>Eliminar</q-item-label></q-item-section>
                       </q-item>
                     </q-list>
                   </q-btn-dropdown>
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label class="row items-center q-gutter-sm">
-                    <q-avatar rounded size="30px"><q-img :src="imageSrc(j.foto || 'torneoImagen.jpg')" /></q-avatar>
-                    <span>{{ j.nombre }}</span>
-                  </q-item-label>
-                  <q-item-label caption>{{ j.posicion || '-' }} | #{{ j.numero_camiseta || '-' }} | {{ j.celular || '-' }}</q-item-label>
-                </q-item-section>
-              </q-item>
-            </q-list>
+                </q-td>
+              </template>
+              <template #body-cell-foto="props">
+                <q-td :props="props">
+                  <q-avatar rounded size="34px">
+                    <q-img :src="imageSrc(props.row.foto || 'torneoImagen.jpg')" />
+                  </q-avatar>
+                </q-td>
+              </template>
+            </q-table>
           </q-card-section>
         </q-card>
       </q-dialog>
@@ -520,11 +545,35 @@
               <div class="col-12 col-md-3"><q-input v-model="jugadorForm.fecha_nacimiento" type="date" dense outlined label="Nacimiento" /></div>
               <div class="col-12 col-md-3"><q-input v-model="jugadorForm.documento" dense outlined label="Documento" /></div>
               <div class="col-12 col-md-3"><q-input v-model="jugadorForm.celular" dense outlined label="Celular" /></div>
-              <div class="col-12 col-md-4"><q-file v-model="jugadorForm.foto" dense outlined label="Foto" accept="image/*" /></div>
+              <div class="col-12 col-md-4">
+                <q-file
+                  v-model="jugadorForm.foto"
+                  dense
+                  outlined
+                  label="Foto"
+                  accept="image/*"
+                  @update:model-value="onJugadorImageChange"
+                />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-card flat bordered>
+                  <q-card-section class="q-pa-sm">
+                    <div class="text-caption text-grey-7 q-mb-xs">Vista previa</div>
+                    <q-img :src="jugadorPreview || imageSrc(jugadorForm.foto_actual || 'torneoImagen.jpg')" :ratio="1" />
+                  </q-card-section>
+                </q-card>
+              </div>
             </div>
             <div class="row justify-end">
-              <q-btn flat no-caps label="Cancelar" @click="jugadorFormDialog = false" />
-              <q-btn color="primary" no-caps :label="jugadorForm.id ? 'Actualizar' : 'Agregar'" @click="guardarJugador" />
+              <q-btn flat no-caps label="Cancelar" :disable="jugadorSaving" @click="jugadorFormDialog = false" />
+              <q-btn
+                color="primary"
+                no-caps
+                :label="jugadorForm.id ? 'Actualizar' : 'Agregar'"
+                :loading="jugadorSaving"
+                :disable="playersLoading"
+                @click="guardarJugador"
+              />
             </div>
           </q-card-section>
         </q-card>
@@ -561,11 +610,14 @@ export default {
       equipoDialog: false,
       jugadorDialog: false,
       jugadorFormDialog: false,
+      playersLoading: false,
+      jugadorSaving: false,
       selectedEquipo: null,
       groupAutoCount: 3,
       groupAutoCountOptions: [1, 2, 3, 4, 5, 6, 7, 8].map(v => ({ label: `${v}`, value: v })),
       grupoForm: { id: null, nombre: '' },
       teamPreview: null,
+      jugadorPreview: null,
       teamForm: {
         id: null,
         nombre: '',
@@ -583,7 +635,8 @@ export default {
         fecha_nacimiento: '',
         documento: '',
         celular: '',
-        foto: null
+        foto: null,
+        foto_actual: 'torneoImagen.jpg'
       },
       configImagePreview: null,
       configBannerPreview: null,
@@ -611,6 +664,16 @@ export default {
         { name: 'entrenador', label: 'Entrenador', field: 'entrenador', align: 'left' },
         { name: 'categoria', label: 'Categoria', field: 'grupo_nombre', align: 'left' },
         { name: 'jugadores_count', label: 'Jugadores', align: 'right' }
+      ],
+      jugadoresColumns: [
+        { name: 'actions', label: 'Opciones', align: 'left' },
+        { name: 'foto', label: 'Foto', field: 'foto', align: 'left' },
+        { name: 'nombre', label: 'Nombre', field: 'nombre', align: 'left' },
+        { name: 'abreviado', label: 'Abrev.', field: 'abreviado', align: 'left' },
+        { name: 'posicion', label: 'Posicion', field: 'posicion', align: 'left' },
+        { name: 'numero_camiseta', label: '#', field: 'numero_camiseta', align: 'left' },
+        { name: 'documento', label: 'Documento', field: 'documento', align: 'left' },
+        { name: 'celular', label: 'Celular', field: 'celular', align: 'left' }
       ]
     }
   },
@@ -663,6 +726,7 @@ export default {
     if (this.configImagePreview) URL.revokeObjectURL(this.configImagePreview)
     if (this.configBannerPreview) URL.revokeObjectURL(this.configBannerPreview)
     if (this.teamPreview) URL.revokeObjectURL(this.teamPreview)
+    if (this.jugadorPreview) URL.revokeObjectURL(this.jugadorPreview)
   },
   methods: {
     imageSrc (name) { return `${this.$url}../../images/${name || 'torneoImagen.jpg'}` },
@@ -714,6 +778,10 @@ export default {
       if (this.teamPreview) URL.revokeObjectURL(this.teamPreview)
       this.teamPreview = file ? URL.createObjectURL(file) : null
     },
+    onJugadorImageChange (file) {
+      if (this.jugadorPreview) URL.revokeObjectURL(this.jugadorPreview)
+      this.jugadorPreview = file ? URL.createObjectURL(file) : null
+    },
     resetGrupoForm () { this.grupoForm = { id: null, nombre: '' } },
     resetTeamForm () {
       if (this.teamPreview) URL.revokeObjectURL(this.teamPreview)
@@ -721,7 +789,20 @@ export default {
       this.teamForm = { id: null, nombre: '', entrenador: '', campeonato_grupo_id: null, imagen: null, imagen_actual: 'torneoImagen.jpg' }
     },
     resetJugadorForm () {
-      this.jugadorForm = { id: null, nombre: '', abreviado: '', posicion: '', numero_camiseta: '', fecha_nacimiento: '', documento: '', celular: '', foto: null }
+      if (this.jugadorPreview) URL.revokeObjectURL(this.jugadorPreview)
+      this.jugadorPreview = null
+      this.jugadorForm = {
+        id: null,
+        nombre: '',
+        abreviado: '',
+        posicion: '',
+        numero_camiseta: '',
+        fecha_nacimiento: '',
+        documento: '',
+        celular: '',
+        foto: null,
+        foto_actual: 'torneoImagen.jpg'
+      }
     },
     cargarDeportes () { this.$axios.get('public/deportes').then(r => { this.deportes = r.data || [] }).catch(() => { this.deportes = [] }) },
     cargarCampeonato () {
@@ -855,6 +936,13 @@ export default {
       this.selectedEquipo = eq
       this.resetJugadorForm()
       this.jugadorDialog = true
+      this.playersLoading = true
+      this.loadGestionData()
+        .then(() => {
+          const refreshed = this.equipos.find(e => e.id === eq.id)
+          if (refreshed) this.selectedEquipo = refreshed
+        })
+        .finally(() => { this.playersLoading = false })
     },
     openJugadorFormDialog (j = null) {
       if (j) {
@@ -867,6 +955,7 @@ export default {
     guardarJugador () {
       if (!this.selectedEquipo?.id) return
       if (!this.jugadorForm.nombre || !this.jugadorForm.nombre.trim()) { this.$alert.error('Nombre del jugador requerido'); return }
+      this.jugadorSaving = true
       const fd = new FormData()
       fd.append('nombre', this.jugadorForm.nombre.trim())
       fd.append('abreviado', this.jugadorForm.abreviado || '')
@@ -885,14 +974,18 @@ export default {
         this.$alert.success(this.jugadorForm.id ? 'Jugador actualizado' : 'Jugador agregado')
         this.jugadorFormDialog = false
         this.resetJugadorForm()
+        this.playersLoading = true
         this.loadGestionData().then(() => {
           this.cargarCampeonato()
           const refreshed = this.equipos.find(e => e.id === this.selectedEquipo.id)
           if (refreshed) this.selectedEquipo = refreshed
-        })
+        }).finally(() => { this.playersLoading = false })
       }).catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo guardar jugador'))
+        .finally(() => { this.jugadorSaving = false })
     },
     editarJugador (j) {
+      if (this.jugadorPreview) URL.revokeObjectURL(this.jugadorPreview)
+      this.jugadorPreview = null
       this.jugadorForm = {
         id: j.id,
         nombre: j.nombre || '',
@@ -902,13 +995,15 @@ export default {
         fecha_nacimiento: j.fecha_nacimiento || '',
         documento: j.documento || '',
         celular: j.celular || '',
-        foto: null
+        foto: null,
+        foto_actual: j.foto || 'torneoImagen.jpg'
       }
     },
     eliminarJugador (j) {
       if (!this.selectedEquipo?.id) return
       this.$alert.dialog(`Eliminar jugador ${j.nombre}?`)
         .onOk(() => {
+          this.playersLoading = true
           this.$axios.delete(`campeonatos/${this.campeonato.id}/equipos/${this.selectedEquipo.id}/jugadores/${j.id}`)
             .then(() => {
               this.$alert.success('Jugador eliminado')
@@ -916,9 +1011,12 @@ export default {
                 this.cargarCampeonato()
                 const refreshed = this.equipos.find(e => e.id === this.selectedEquipo.id)
                 if (refreshed) this.selectedEquipo = refreshed
-              })
+              }).finally(() => { this.playersLoading = false })
             })
-            .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo eliminar jugador'))
+            .catch(e => {
+              this.$alert.error(e.response?.data?.message || 'No se pudo eliminar jugador')
+              this.playersLoading = false
+            })
         })
     },
     saveConfig (silent = false) {
@@ -1000,6 +1098,12 @@ export default {
   color: #ffffff !important;
 }
 .public-page.mode-light .btn-enter-cat :deep(.q-btn__content) {
+  color: #ffffff !important;
+}
+.btn-parent-back,
+.btn-parent-back :deep(.q-btn__content),
+.public-page.mode-light .btn-parent-back,
+.public-page.mode-light .btn-parent-back :deep(.q-btn__content) {
   color: #ffffff !important;
 }
 .public-page.mode-light {
