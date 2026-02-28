@@ -885,4 +885,9 @@ export default {
 .clasif-root.mode-light .match-mid-card {
   color: #ffffff;
 }
+.clasif-root.mode-light .match-score {
+  color: #334155;
+  text-shadow: none;
+  font-weight: 800;
+}
 </style>

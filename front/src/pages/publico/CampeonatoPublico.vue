@@ -50,7 +50,13 @@
     <q-card flat bordered class="q-ma-md panel-shell">
       <q-tabs v-model="tab" dense align="left" no-caps class="pub-tabs">
         <q-tab name="inicio" label="Inicio" :icon="tabIcon('inicio')" :class="tabClass('inicio')" />
-        <q-tab name="clasificacion" label="Clasificacion" :icon="tabIcon('clasificacion')" :class="tabClass('clasificacion')" />
+        <q-tab
+          v-if="!esPadreCategorias"
+          name="clasificacion"
+          label="Clasificacion"
+          :icon="tabIcon('clasificacion')"
+          :class="tabClass('clasificacion')"
+        />
         <q-tab name="ranking" label="Ranking" :icon="tabIcon('ranking')" :class="tabClass('ranking')" />
         <q-tab
           v-if="$store?.isLogged"
@@ -171,7 +177,7 @@
           </q-card>
         </q-tab-panel>
 
-        <q-tab-panel name="clasificacion" class="panel-light-blue">
+        <q-tab-panel v-if="!esPadreCategorias" name="clasificacion" class="panel-light-blue">
           <ClasificacionPanel
             :code="$route.params.code"
             :campeonato="campeonato"
@@ -723,6 +729,9 @@ export default {
       this.$axios.get(`public/campeonatos/${this.$route.params.code}`)
         .then(r => {
           this.campeonato = r.data || {}
+          if (this.campeonato?.tipo === 'categorias' && this.tab === 'clasificacion') {
+            this.tab = 'inicio'
+          }
           this.grupos = this.campeonato.grupos || []
           this.equipos = this.campeonato.equipos || []
           this.config = {
@@ -984,7 +993,13 @@ export default {
 .btn-enter-cat {
   color: #ffffff !important;
 }
+.btn-enter-cat :deep(.q-btn__content) {
+  color: #ffffff !important;
+}
 .public-page.mode-light .btn-enter-cat {
+  color: #ffffff !important;
+}
+.public-page.mode-light .btn-enter-cat :deep(.q-btn__content) {
   color: #ffffff !important;
 }
 .public-page.mode-light {
