@@ -1,6 +1,6 @@
-# Torneo Ya (front)
+# Front (front)
 
-Torneo Ya
+Front
 
 ## Install the dependencies
 ```bash

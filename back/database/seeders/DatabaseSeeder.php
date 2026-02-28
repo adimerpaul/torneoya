@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Spatie\Permission\Models\Permission;
 
 class DatabaseSeeder extends Seeder
 {
@@ -15,22 +16,27 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-//        $this->call([
-//            DeportesSeeder::class,
-//        ]);
-
         // User::factory(10)->create();
 
-        User::query()->updateOrCreate(
-            ['username' => 'admin'],
-            [
-                'name' => 'Administrador',
-                'email' => 'admin@torneoya.local',
-                'password' => 'admin123Admin',
-                'role' => 'Admin',
-                'active' => true,
-                'avatar' => 'avatar.png',
-            ]
-        );
+//        User::factory()->create([
+//            'name' => 'Test User',
+//            'email' => 'test@example.com',
+//        ]);
+        $userAdmin = User::create([
+            'name' => 'Admin User',
+            'username' => 'admin',
+            'role' => 'Administrador',
+            'avatar' => 'default.png',
+            'email' => '',
+            'password' => 'admin123Admin',
+        ]);
+        $permisos = [
+            'Dashboard',
+            'Usuarios',
+        ];;
+        foreach ($permisos as $permiso) {
+            Permission::create(['name' => $permiso]);
+        }
+        $userAdmin->givePermissionTo(Permission::all());
     }
 }

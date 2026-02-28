@@ -4,7 +4,7 @@ node_modules
 
 # Quasar core related directories
 .quasar
-/dist
+#/dist
 /quasar.config.*.temporary.compiled*
 
 # Cordova related directories and files
@@ -31,6 +31,6 @@ yarn-error.log*
 
 # local .env files
 .env.local*
-.env.development
-.env.production
 .env
+.env.production
+.env.development

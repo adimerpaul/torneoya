@@ -4,65 +4,37 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use OwenIt\Auditing\Auditable;
+use Spatie\Permission\Traits\HasRoles;
 use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
-
+use OwenIt\Auditing\Auditable as AuditableTrait;
 class User extends Authenticatable implements AuditableContract
 {
-    use Auditable, HasApiTokens, HasFactory, Notifiable, SoftDeletes;
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+    use HasFactory, Notifiable, SoftDeletes, HasApiTokens, HasRoles, AuditableTrait;
     protected $fillable = [
         'name',
-        'email',
         'username',
-        'password',
-        'role',
-        'active',
         'avatar',
+        'email',
+        'password',
+        'clave',
+        'telefono_contacto_1',
+        'telefono_contacto_2',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
-        'deleted_at',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'active' => 'boolean',
         ];
-    }
-
-    public function getAvatarAttribute(?string $value): string
-    {
-        return $value ?: 'avatar.png';
-    }
-
-    public function campeonatos(): HasMany
-    {
-        return $this->hasMany(Campeonato::class);
     }
 }

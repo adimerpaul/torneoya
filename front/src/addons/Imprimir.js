@@ -534,7 +534,7 @@ Oruro</div>
   }
 
   static reciboCompra (buy) {
-    console.log('reciboCompra', buy)
+    // console.log('reciboCompra', buy)
     return new Promise((resolve, reject) => {
       const ClaseConversor = conversor.conversorNumerosALetras
       const miConversor = new ClaseConversor()
@@ -551,6 +551,7 @@ Oruro</div>
         }
       }
       const env = useCounterStore().env
+      console.log('env', env)
       QRCode.toDataURL(`Fecha: ${buy.date} Monto: ${parseFloat(buy.total).toFixed(2)}`, opts).then(url => {
         let cadena = `${this.head()}
     <div style='padding-left: 0.5cm;padding-right: 0.5cm'>
@@ -566,8 +567,8 @@ Oruro</div>
     <table>
     </table><hr><div class='titulo'>DETALLE</div>`
         buy.compra_detalles.forEach(r => {
-        cadena += `<div style='font-size: 12px'><b>${r.nombre} </b></div>`
-        cadena += `<div>${r.cantidad} ${parseFloat(r.precio).toFixed(2)} 0.00
+          cadena += `<div style='font-size: 12px'><b>${r.nombre} </b></div>`
+          cadena += `<div>${r.cantidad} ${parseFloat(r.precio).toFixed(2)} 0.00
           <span style='float:right'>${parseFloat(r.total).toFixed(2)}</span></div>`
         })
         cadena += `<hr>
@@ -796,7 +797,7 @@ Oruro</div>
     <hr>
     <table>
       <tr><td class='titder'>NOMBRE/RAZÓN SOCIAL:</td><td class='contenido'>${factura.nombre}</td></tr>
-      <tr><td class='titder'>NIT/CI/CEX:</td><td class='contenido'>${factura.ci}${factura.cliente.complemento? '-' + factura.cliente.complemento : ''}</td></tr>
+      <tr><td class='titder'>NIT/CI/CEX:</td><td class='contenido'>${factura.ci}${factura.cliente?.complemento? '-' + factura.cliente?.complemento : ''}</td></tr>
       <tr><td class='titder'>COD. CLIENTE:</td><td class='contenido'>${factura.cliente.id}</td></tr>
       <tr><td class='titder'>FECHA DE EMISIÓN:</td><td class='contenido'>${factura.fecha}</td></tr>
     </table>
@@ -835,4 +836,126 @@ Oruro</div>
     const d = new Printd();
     d.print(el);
   }
+  static async reciboVentaSimple(venta, imprimir = true) {
+    try {
+      const env = useCounterStore().env || {};
+      const ClaseConversor = conversor.conversorNumerosALetras;
+      const miConversor = new ClaseConversor();
+
+      const F2 = (n) => Number(n || 0).toFixed(2);
+      const S  = (v, d='') => (v ?? d).toString();
+
+      const total = Number(venta.total ?? 0);
+      const enteros  = Math.floor(total);
+      const centavos = Math.round((total - enteros) * 100).toString().padStart(2, '0');
+      const literalNum = miConversor.convertToText(enteros);
+      const literal = `Son ${literalNum} ${centavos}/100 Bolivianos`;
+
+      const detalles = Array.isArray(venta.venta_detalles) ? venta.venta_detalles : [];
+
+      // ---------- HTML estilo "reciboCompra" ----------
+      let cadena = `${this.head()}
+  <div style='padding-left: 0.5cm;padding-right: 0.5cm'>
+    <img src="logo.png" alt="logo" style="width: 100px; height: 100px; display: block; margin-left: auto; margin-right: auto;">
+
+    <div class='titulo'>RECIBO DE VENTA</div>
+    <div class='titulo2'>
+      ${S(env.razon)} <br>
+      Casa Matriz<br>
+      No. Punto de Venta ${S(env.puntoVenta ?? 0)}<br>
+      ${S(env.direccion)}<br>
+      Tel. ${S(env.telefono)}<br>
+      Oruro
+    </div>
+
+    <hr>
+
+    <div style="display:flex; justify-content: space-between;">
+      <div class="titder" style="width:45%;">FECHA HORA</div>
+      <div class="conte2" style="width:55%;">${S(venta.fecha)} ${S(venta.hora)}</div>
+    </div>
+
+    <div style="display:flex; justify-content: space-between;">
+      <div class="titder" style="width:45%;">ID</div>
+      <div class="conte2" style="width:55%;">${S(venta.id)}</div>
+    </div>
+
+    <div style="display:flex; justify-content: space-between;">
+      <div class="titder" style="width:45%;">USUARIO</div>
+      <div class="conte2" style="width:55%;">${S(venta.user?.name)}</div>
+    </div>
+
+    <div style="display:flex; justify-content: space-between;">
+      <div class="titder" style="width:45%;">PAGO</div>
+      <div class="conte2" style="width:55%;">${S(venta.tipo_pago ?? venta.tipoPago ?? venta.metodo_pago ?? '')}</div>
+    </div>
+
+    ${venta.tipo_venta ? `
+    <div style="display:flex; justify-content: space-between;">
+      <div class="titder" style="width:45%;">TIPO</div>
+      <div class="conte2" style="width:55%;">${S(venta.tipo_venta)}</div>
+    </div>` : ''}
+
+    <hr>
+    <div class='titulo'>DETALLE</div>
+`;
+
+      // Detalle estilo compra
+      detalles.forEach((r) => {
+        const nombre = S(r.producto?.nombre ?? r.nombre ?? r.descripcion ?? '');
+        const qty    = Number(r.cantidad ?? 0);
+        const precio = Number(r.precio ?? 0);
+        const sub    = Number(r.subTotal ?? (qty * precio));
+        const idProd = S(r.producto_id ?? r.product_id ?? r.producto?.id ?? '');
+
+        // Línea 1: nombre (y opcional id)
+        cadena += `<div style='font-size: 12px'><b>${idProd ? (idProd + ' - ') : ''}${nombre}</b></div>`;
+
+        // Línea 2: qty precio ... subtotal derecha (igual a compra)
+        cadena += `
+      <div>
+        <span style='font-size: 14px;font-weight: bold'>${F2(qty)}</span>
+        <span>${F2(precio)} 0.00</span>
+        <span style='float:right'>${F2(sub)}</span>
+      </div>`;
+      });
+
+      // Totales (como compra)
+      cadena += `
+    <hr>
+    <table style='font-size: 8px;'>
+      <tr>
+        <td class='titder' style='width: 60%'>SUBTOTAL Bs</td>
+        <td class='conte2'>${F2(total)}</td>
+      </tr>
+    </table>
+
+    <br>
+    <div>${literal}</div>
+    <hr>
+
+    <div class='titulo2' style="font-size: 9px">
+      ¡Gracias por su compra!
+    </div>
+
+  </div>
+</div>
+</body>
+</html>`;
+
+      const mount = document.getElementById('myElement');
+      if (mount) mount.innerHTML = cadena;
+
+      if (imprimir) {
+        const d = new Printd();
+        d.print(document.getElementById('myElement'));
+      }
+
+      return true;
+    } catch (e) {
+      console.error('reciboVentaSimple error:', e);
+      throw e;
+    }
+  }
+
 }

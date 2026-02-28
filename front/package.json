@@ -1,8 +1,8 @@
 {
   "name": "front",
   "version": "0.0.1",
-  "description": "Torneo Ya",
-  "productName": "Torneo Ya",
+  "description": "Tickets",
+  "productName": "Tickets",
   "author": "adimerpaul <adimer101@gmail.com>",
   "type": "module",
   "private": true,
@@ -14,13 +14,17 @@
   },
   "dependencies": {
     "@quasar/extras": "^1.16.4",
+    "apexcharts": "^5.3.6",
     "axios": "^1.2.1",
+    "jspdf": "^4.0.0",
+    "jspdf-autotable": "^5.0.7",
     "moment": "^2.30.1",
     "pinia": "^3.0.1",
     "quasar": "^2.16.0",
     "register-service-worker": "^1.7.2",
     "vue": "^3.5.22",
-    "vue-router": "^5.0.0",
+    "vue-i18n": "^11.2.8",
+    "vue-router": "^4.0.0",
     "vue3-apexcharts": "^1.10.0"
   },
   "devDependencies": {
@@ -38,7 +42,6 @@
   "engines": {
     "node": "^28 || ^26 || ^24 || ^22 || ^20",
     "npm": ">= 6.13.4",
-    "yarn": ">= 1.21.1",
-    "pnpm": ">= 10.0.0"
+    "yarn": ">= 1.21.1"
   }
 }

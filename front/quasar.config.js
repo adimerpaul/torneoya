@@ -12,7 +12,8 @@ export default defineConfig((/* ctx */) => {
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
     boot: [
-      'axios'
+      'axios',
+      'i18n'
     ],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
@@ -32,7 +33,6 @@ export default defineConfig((/* ctx */) => {
 
       'roboto-font', // optional, you are not bound to it
       'material-icons', // optional, you are not bound to it
-      'material-icons-outlined', // optional, you are not bound to it
     ],
 
     // Full list of options: https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#build
@@ -88,9 +88,11 @@ export default defineConfig((/* ctx */) => {
 
       // Quasar plugins
       plugins: [
-        "Loading",
-        "Notify",
-        "Dialog",
+        'Notify',
+        'Dialog',
+        'LocalStorage',
+        'SessionStorage',
+        'Loading'
       ]
     },
 
@@ -187,7 +189,7 @@ export default defineConfig((/* ctx */) => {
       },
 
       builder: {
-        // https://www.electron.build/configuration
+        // https://www.electron.build/configuration/configuration
 
         appId: 'front'
       }
