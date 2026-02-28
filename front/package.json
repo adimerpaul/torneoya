@@ -1,8 +1,8 @@
 {
   "name": "front",
   "version": "0.0.1",
-  "description": "Tickets",
-  "productName": "Tickets",
+  "description": "Torneo Ya",
+  "productName": "Torneo Ya",
   "author": "adimerpaul <adimer101@gmail.com>",
   "type": "module",
   "private": true,
