@@ -320,8 +320,15 @@ class CampeonatoController extends Controller
             return response()->json(['message' => 'No autorizado'], 403);
         }
 
+        $validated = $request->validate([
+            'cantidad' => 'nullable|integer|min:1|max:26',
+        ]);
+        $cantidad = (int)($validated['cantidad'] ?? 3);
+
+        $letters = range('A', 'Z');
         $created = [];
-        foreach (['A', 'B', 'C'] as $name) {
+        for ($i = 0; $i < $cantidad; $i++) {
+            $name = 'Grupo ' . $letters[$i];
             $exists = CampeonatoGrupo::where('campeonato_id', $campeonato->id)->where('nombre', $name)->exists();
             if (!$exists) {
                 $created[] = CampeonatoGrupo::create([
@@ -615,6 +622,7 @@ class CampeonatoController extends Controller
     {
         $campeonato = Campeonato::where('codigo', strtoupper($code))
             ->with([
+                'parent:id,nombre,codigo',
                 'categorias',
                 'grupos',
                 'equipos.jugadores',

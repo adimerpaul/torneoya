@@ -2,8 +2,7 @@
   <q-layout view="lHh Lpr lFf">
     <q-header class="public-header text-white" bordered>
       <q-toolbar>
-        <q-btn v-if="$store?.isLogged" flat dense round color="white" icon="arrow_back" @click="$router.push('/login')" />
-        <div class="text-subtitle1 text-weight-medium q-ml-sm">Torneo Ya - Vive tus deportes</div>
+        <div class="text-subtitle1 text-weight-medium header-title">Torneo Ya - Vive tus deportes</div>
         <q-space />
         <q-badge color="white" text-color="indigo-10">Codigo {{ code }}</q-badge>
       </q-toolbar>
@@ -30,5 +29,11 @@ export default {
 .public-header {
   background: #0b1220;
   border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+}
+.header-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 72vw;
 }
 </style>

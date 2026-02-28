@@ -10,6 +10,8 @@ class CampeonatoEquipo extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $table = 'campeonato_equipos';
+
     protected $fillable = [
         'campeonato_id',
         'campeonato_grupo_id',
@@ -40,4 +42,3 @@ class CampeonatoEquipo extends Model
         return $this->grupo?->nombre;
     }
 }
-

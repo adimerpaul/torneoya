@@ -1,3 +1,4 @@
+
 <template>
   <q-page class="public-page">
     <div class="hero" :style="{ backgroundImage: `url(${imageSrc(campeonato.banner || 'torneoBanner.jpg')})` }">
@@ -9,7 +10,16 @@
 
           <div class="hero-main">
             <div class="text-h5 text-weight-bold text-white">{{ campeonato.nombre || 'Campeonato' }}</div>
-            <div class="text-blue-1 q-mt-xs">{{ rangoFechas(campeonato.fecha_inicio, campeonato.fecha_fin) }}</div>
+            <div class="row items-center q-gutter-sm q-mt-xs">
+              <div class="text-blue-1">{{ rangoFechas(campeonato.fecha_inicio, campeonato.fecha_fin) }}</div>
+              <q-chip
+                dense
+                :color="esPadreCategorias ? 'deep-orange-2' : 'blue-2'"
+                :text-color="esPadreCategorias ? 'deep-orange-10' : 'blue-10'"
+              >
+                {{ esPadreCategorias ? 'Tipo: categorias' : 'Tipo: unico' }}
+              </q-chip>
+            </div>
             <div class="row items-center q-gutter-sm q-mt-sm">
               <q-chip dense color="indigo-2" text-color="indigo-10" icon="shield">Codigo: {{ campeonato.codigo }}</q-chip>
               <q-chip dense color="teal-2" text-color="teal-10" icon="person">
@@ -30,135 +40,87 @@
           <q-space />
 
           <div class="column q-gutter-sm actions-col">
-            <q-btn
-              color="white"
-              text-color="indigo-9"
-              no-caps
-              icon="share"
-              label="Compartir"
-              @click="sharePublic"
-            />
-            <q-btn
-              v-if="creatorWhatsappLink"
-              color="positive"
-              no-caps
-              icon="chat"
-              label="WhatsApp al creador"
-              @click="openWhatsApp"
-            />
+            <q-btn color="white" text-color="indigo-9" no-caps icon="share" label="Compartir" @click="sharePublic" />
+            <q-btn v-if="creatorWhatsappLink" color="positive" no-caps icon="chat" label="WhatsApp al creador" @click="openWhatsApp" />
           </div>
         </div>
       </div>
     </div>
 
     <q-card flat bordered class="q-ma-md panel-shell">
-      <q-tabs
-        v-model="tab"
-        dense
-        align="left"
-        no-caps
-        class="pub-tabs"
-      >
-        <q-tab
-          name="inicio"
-          label="Inicio"
-          :icon="tabIcon('inicio')"
-          :class="tabClass('inicio')"
-        />
-        <q-tab
-          name="clasificacion"
-          label="Clasificacion"
-          :icon="tabIcon('clasificacion')"
-          :class="tabClass('clasificacion')"
-        />
-        <q-tab
-          name="ranking"
-          label="Ranking"
-          :icon="tabIcon('ranking')"
-          :class="tabClass('ranking')"
-        />
-        <q-tab
-          name="configuracion"
-          label="Configuracion"
-          :icon="tabIcon('configuracion')"
-          :class="tabClass('configuracion')"
-        />
+      <q-tabs v-model="tab" dense align="left" no-caps class="pub-tabs">
+        <q-tab name="inicio" label="Inicio" :icon="tabIcon('inicio')" :class="tabClass('inicio')" />
+        <q-tab name="clasificacion" label="Clasificacion" :icon="tabIcon('clasificacion')" :class="tabClass('clasificacion')" />
+        <q-tab name="ranking" label="Ranking" :icon="tabIcon('ranking')" :class="tabClass('ranking')" />
+        <q-tab name="configuracion" label="Configuracion" :icon="tabIcon('configuracion')" :class="tabClass('configuracion')" />
       </q-tabs>
 
       <q-tab-panels v-model="tab" animated class="panels">
         <q-tab-panel name="inicio">
+          <q-banner v-if="showParentBanner" dense rounded class="bg-indigo-2 text-indigo-10 q-mb-md">
+            Este campeonato pertenece a: <b>{{ campeonato.parent.nombre }}</b>
+            <q-btn
+              v-if="$store?.isLogged"
+              color="indigo-9"
+              text-color="white"
+              no-caps
+              class="q-ml-sm"
+              label="Volver al campeonato principal"
+              @click="goToPadre"
+            />
+          </q-banner>
+
           <div class="text-subtitle1 text-weight-medium q-mb-sm text-cyan-2">Resumen</div>
           <q-card flat bordered class="q-mb-md bg-dark-card text-blue-1">
             <q-card-section>{{ campeonato.descripcion || 'Sin descripcion' }}</q-card-section>
           </q-card>
 
-          <div v-if="campeonato.tipo === 'unico'" class="row items-center q-gutter-sm text-white q-mb-md">
-            <q-icon :name="campeonato.deporte_icono || 'emoji_events'" color="amber-4" />
-            <span>{{ deporteNombre(campeonato.deporte) || campeonato.deporte || 'Deporte' }}</span>
-          </div>
-
-          <div v-else class="q-mb-md">
-            <div class="text-subtitle2 text-cyan-2 q-mb-sm">Categorias</div>
+          <div v-if="esPadreCategorias" class="q-mb-md">
+            <div class="text-subtitle1 text-green-3 q-mb-sm">Categorias del campeonato</div>
             <div class="row q-col-gutter-sm">
               <div v-for="cat in (campeonato.categorias || [])" :key="cat.id" class="col-12 col-md-4">
                 <q-card flat bordered class="bg-dark-card text-white">
                   <q-card-section class="row items-center q-gutter-sm">
-                    <q-avatar rounded size="40px"><q-img :src="imageSrc(cat.imagen || 'torneoImagen.jpg')" /></q-avatar>
-                    <div>
-                      <div class="text-weight-medium">{{ cat.nombre }}</div>
-                      <div class="text-caption text-blue-2">
-                        <q-icon :name="cat.deporte_icono || 'emoji_events'" size="14px" />
-                        {{ deporteNombre(cat.deporte) || cat.deporte }}
-                      </div>
+                    <q-avatar rounded size="44px"><q-img :src="imageSrc(cat.imagen || 'torneoImagen.jpg')" /></q-avatar>
+                    <div class="col">
+                      <div class="text-weight-bold">{{ cat.nombre }}</div>
+                      <div class="text-caption text-blue-2">{{ deporteNombre(cat.deporte) || cat.deporte || 'Sin deporte' }}</div>
                     </div>
+                    <q-btn dense color="primary" no-caps label="Entrar" @click="entrarCategoria(cat)" />
                   </q-card-section>
                 </q-card>
               </div>
             </div>
           </div>
 
-          <div class="row items-center q-mb-sm">
-            <div class="text-subtitle1 text-weight-medium text-green-3">Equipos</div>
-            <q-space />
-            <q-btn
-              v-if="canEdit"
-              color="green-7"
-              no-caps
-              icon="groups"
-              label="Gestionar equipos"
-              @click="openEquiposDialog"
-            />
-          </div>
+          <div v-else class="q-mb-md">
+            <div class="row items-center q-mb-sm">
+              <div class="text-subtitle1 text-weight-medium text-green-3">Equipos</div>
+              <q-space />
+              <q-btn v-if="canEdit" color="green-7" no-caps icon="groups" label="Gestionar equipos" @click="openEquiposDialog" />
+            </div>
 
-          <div v-if="!equipos.length" class="text-grey-5 q-mb-md">
-            Aun no hay equipos registrados.
-          </div>
-
-          <div v-else class="row q-col-gutter-sm q-mb-md">
-            <div v-for="eq in equipos" :key="eq.id" class="col-12 col-md-6">
-              <q-card flat bordered class="bg-dark-card text-white">
-                <q-card-section class="row items-center q-gutter-sm">
-                  <q-avatar rounded size="44px">
-                    <q-img :src="imageSrc(eq.imagen || 'torneoImagen.jpg')" />
-                  </q-avatar>
-                  <div class="col">
-                    <div class="text-weight-bold">{{ eq.nombre }}</div>
-                    <div class="text-caption text-blue-2">Entrenador: {{ eq.entrenador || 'Sin definir' }}</div>
-                  </div>
-                  <q-chip v-if="eq.grupo_nombre" dense color="teal-2" text-color="teal-10">
-                    {{ eq.grupo_nombre }}
-                  </q-chip>
-                </q-card-section>
-                <q-separator dark />
-                <q-card-section class="text-caption text-grey-4">
-                  Jugadores: {{ (eq.jugadores || []).length }}
-                </q-card-section>
-              </q-card>
+            <div v-if="!equipos.length" class="text-grey-5">Aun no hay equipos registrados</div>
+            <div v-else class="row q-col-gutter-sm">
+              <div v-for="eq in equipos" :key="eq.id" class="col-12 col-md-6">
+                <q-card flat bordered class="bg-dark-card text-white">
+                  <q-card-section class="row items-center q-gutter-sm">
+                    <q-avatar rounded size="44px">
+                      <q-img :src="imageSrc(eq.imagen || 'torneoImagen.jpg')" />
+                    </q-avatar>
+                    <div class="col">
+                      <div class="text-weight-bold">{{ eq.nombre }}</div>
+                      <div class="text-caption text-blue-2">{{ eq.entrenador || 'Sin entrenador' }}</div>
+                    </div>
+                    <q-chip dense color="teal-2" text-color="teal-10">{{ eq.grupo_nombre || 'Sin categoria' }}</q-chip>
+                    <q-chip dense color="indigo-2" text-color="indigo-10">{{ (eq.jugadores || []).length }} jugadores</q-chip>
+                  </q-card-section>
+                </q-card>
+              </div>
             </div>
           </div>
 
           <div class="text-subtitle1 text-weight-medium q-mb-sm text-deep-orange-3">Mensajes</div>
-
           <q-list bordered separator class="rounded-borders messages-list q-mb-md">
             <q-item v-for="m in mensajes" :key="m.id" class="items-start">
               <q-item-section>
@@ -197,15 +159,7 @@
                 />
               </div>
               <div class="col-12 col-md-2 flex flex-center">
-                <q-btn
-                  color="deep-orange"
-                  no-caps
-                  class="full-width"
-                  label="Enviar"
-                  icon="send"
-                  @click="sendMessage"
-                  :loading="sendingMessage"
-                />
+                <q-btn color="deep-orange" no-caps class="full-width" label="Enviar" icon="send" @click="sendMessage" :loading="sendingMessage" />
               </div>
             </q-card-section>
           </q-card>
@@ -313,17 +267,7 @@
                 </q-card>
               </div>
               <div class="col-12">
-                <q-input
-                  v-model="config.descripcion"
-                  dense
-                  outlined
-                  dark
-                  color="cyan-3"
-                  type="textarea"
-                  autogrow
-                  label="Descripcion"
-                  :disable="!canEdit"
-                />
+                <q-input v-model="config.descripcion" dense outlined dark color="cyan-3" type="textarea" autogrow label="Descripcion" :disable="!canEdit" />
               </div>
             </div>
 
@@ -337,90 +281,125 @@
       <q-dialog v-model="equiposDialog" persistent>
         <q-card style="width: 980px; max-width: 98vw" class="bg-grey-1">
           <q-card-section class="row items-center">
-            <div class="text-subtitle1 text-weight-bold">Equipos y categorias</div>
+            <div class="text-subtitle1 text-weight-bold">Gestionar equipos</div>
             <q-space />
             <q-btn flat round dense icon="close" @click="equiposDialog = false" />
           </q-card-section>
+          <q-card-section>
+            <div class="row q-col-gutter-md q-mb-md">
+              <div class="col-12 col-md-6">
+                <div class="text-subtitle2 q-mb-xs">Categorias existentes</div>
+                <div class="row q-gutter-xs">
+                  <q-chip
+                    v-for="g in grupos"
+                    :key="g.id"
+                    dense
+                    color="teal-2"
+                    text-color="teal-10"
+                    :label="g.nombre"
+                  />
+                  <q-chip v-if="!grupos.length" dense color="grey-4" text-color="black" label="Sin categorias" />
+                </div>
+              </div>
+              <div class="col-12 col-md-6 row justify-end items-center q-gutter-sm">
+                <q-btn color="indigo" no-caps icon="category" label="Crear categorias" @click="openGruposDialog" />
+                <q-btn color="primary" no-caps icon="groups" label="Crear equipo" @click="openEquipoDialog()" />
+              </div>
+            </div>
 
+            <q-table
+              :rows="equipos"
+              :columns="equiposAdminColumns"
+              row-key="id"
+              flat
+              bordered
+              dense
+              :rows-per-page-options="[0]"
+              no-data-label="No hay equipos"
+            >
+              <template #body-cell-imagen="props">
+                <q-td :props="props">
+                  <q-avatar rounded size="34px">
+                    <q-img :src="imageSrc(props.row.imagen || 'torneoImagen.jpg')" />
+                  </q-avatar>
+                </q-td>
+              </template>
+              <template #body-cell-categoria="props">
+                <q-td :props="props">{{ props.row.grupo_nombre || 'Sin categoria' }}</q-td>
+              </template>
+              <template #body-cell-jugadores_count="props">
+                <q-td :props="props" class="text-right">
+                  <q-chip dense color="indigo-2" text-color="indigo-10">
+                    {{ (props.row.jugadores || []).length }}
+                  </q-chip>
+                </q-td>
+              </template>
+              <template #body-cell-actions="props">
+                <q-td :props="props" class="text-left">
+                  <q-btn-dropdown label="Opciones" no-caps size="10px" dense color="primary">
+                    <q-list>
+                      <q-item clickable v-close-popup @click="openEquipoDialog(props.row)">
+                        <q-item-section avatar><q-icon name="edit" /></q-item-section>
+                        <q-item-section><q-item-label>Editar</q-item-label></q-item-section>
+                      </q-item>
+                      <q-item clickable v-close-popup @click="openJugadorDialog(props.row)">
+                        <q-item-section avatar><q-icon name="groups" /></q-item-section>
+                        <q-item-section><q-item-label>Jugadores</q-item-label></q-item-section>
+                      </q-item>
+                      <q-separator />
+                      <q-item clickable v-close-popup @click="eliminarEquipo(props.row)">
+                        <q-item-section avatar><q-icon name="delete" /></q-item-section>
+                        <q-item-section><q-item-label>Eliminar</q-item-label></q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-btn-dropdown>
+                </q-td>
+              </template>
+            </q-table>
+          </q-card-section>
+        </q-card>
+      </q-dialog>
+
+      <q-dialog v-model="gruposDialog" persistent>
+        <q-card style="width: 620px; max-width: 95vw">
+          <q-card-section class="row items-center">
+            <div class="text-subtitle1 text-weight-bold">Categorias del campeonato</div>
+            <q-space />
+            <q-btn flat round dense icon="close" @click="gruposDialog = false" />
+          </q-card-section>
           <q-card-section>
             <div class="row q-col-gutter-sm q-mb-md">
-              <div class="col-12 col-md-3">
-                <q-input v-model="grupoForm.nombre" dense outlined label="Categoria/Grupo" />
-              </div>
-              <div class="col-12 col-md-9 row q-gutter-sm items-center">
-                <q-btn color="indigo" no-caps label="Agregar categoria" icon="add" @click="guardarGrupo" />
-                <q-btn color="teal" no-caps label="Crear A/B/C" icon="auto_awesome" @click="crearGruposDefault" />
-              </div>
-            </div>
-
-            <div class="row q-gutter-xs q-mb-md">
-              <q-chip
-                v-for="g in grupos"
-                :key="g.id"
-                clickable
-                color="teal-2"
-                text-color="teal-10"
-                :label="g.nombre"
-                :outline="teamForm.campeonato_grupo_id !== g.id"
-                @click="teamForm.campeonato_grupo_id = g.id"
-              />
-              <q-chip
-                clickable
-                color="grey-4"
-                text-color="black"
-                :outline="!!teamForm.campeonato_grupo_id"
-                label="Sin categoria"
-                @click="teamForm.campeonato_grupo_id = null"
-              />
-            </div>
-
-            <q-separator class="q-my-md" />
-
-            <div class="row q-col-gutter-sm q-mb-md">
-              <div class="col-12 col-md-4">
-                <q-input v-model="teamForm.nombre" dense outlined label="Nombre del equipo" />
-              </div>
-              <div class="col-12 col-md-3">
-                <q-input v-model="teamForm.entrenador" dense outlined label="Entrenador" />
-              </div>
-              <div class="col-12 col-md-3">
-                <q-file
-                  v-model="teamForm.imagen"
+              <div class="col-12 col-md-6">
+                <q-select
+                  v-model="groupAutoCount"
                   dense
                   outlined
-                  label="Imagen equipo"
-                  accept="image/*"
-                  @update:model-value="onTeamImageChange"
+                  :options="groupAutoCountOptions"
+                  label="Cuantas categorias quieres crear"
+                  emit-value
+                  map-options
                 />
               </div>
-              <div class="col-12 col-md-2">
-                <q-btn
-                  class="full-width"
-                  color="primary"
-                  no-caps
-                  :label="teamForm.id ? 'Actualizar' : 'Agregar'"
-                  @click="guardarEquipo"
-                />
+              <div class="col-12 col-md-6 flex items-center">
+                <q-btn color="teal" no-caps icon="auto_awesome" label="Generar grupos A/B/C..." @click="crearGruposAuto" />
+              </div>
+            </div>
+
+            <div class="row q-col-gutter-sm q-mb-md">
+              <div class="col-12 col-md-8">
+                <q-input v-model="grupoForm.nombre" dense outlined label="Nombre de categoria" />
+              </div>
+              <div class="col-12 col-md-4">
+                <q-btn class="full-width" color="indigo" no-caps :label="grupoForm.id ? 'Actualizar' : 'Agregar'" @click="guardarGrupo" />
               </div>
             </div>
 
             <q-list bordered separator>
-              <q-item v-for="eq in equipos" :key="eq.id">
-                <q-item-section avatar>
-                  <q-avatar rounded size="34px">
-                    <q-img :src="imageSrc(eq.imagen || 'torneoImagen.jpg')" />
-                  </q-avatar>
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label>{{ eq.nombre }}</q-item-label>
-                  <q-item-label caption>
-                    {{ eq.entrenador || 'Sin entrenador' }} | {{ eq.grupo_nombre || 'Sin categoria' }}
-                  </q-item-label>
-                </q-item-section>
-                <q-item-section side class="row q-gutter-xs items-center">
-                  <q-btn dense flat color="primary" icon="edit" @click="editarEquipo(eq)" />
-                  <q-btn dense flat color="deep-purple" icon="person_add" @click="openJugadorDialog(eq)" />
-                  <q-btn dense flat color="negative" icon="delete" @click="eliminarEquipo(eq)" />
+              <q-item v-for="g in grupos" :key="g.id">
+                <q-item-section>{{ g.nombre }}</q-item-section>
+                <q-item-section side>
+                  <q-btn dense flat color="primary" icon="edit" @click="editarGrupo(g)" />
+                  <q-btn dense flat color="negative" icon="delete" @click="eliminarGrupo(g)" />
                 </q-item-section>
               </q-item>
             </q-list>
@@ -428,12 +407,93 @@
         </q-card>
       </q-dialog>
 
+      <q-dialog v-model="equipoDialog" persistent>
+        <q-card style="width: 680px; max-width: 95vw">
+          <q-card-section class="row items-center">
+            <div class="text-subtitle1 text-weight-bold">{{ teamForm.id ? 'Editar equipo' : 'Nuevo equipo' }}</div>
+            <q-space />
+            <q-btn flat round dense icon="close" @click="equipoDialog = false" />
+          </q-card-section>
+          <q-card-section>
+            <div class="row q-col-gutter-sm">
+              <div class="col-12 col-md-6"><q-input v-model="teamForm.nombre" dense outlined label="Nombre del equipo" /></div>
+              <div class="col-12 col-md-6"><q-input v-model="teamForm.entrenador" dense outlined label="Entrenador" /></div>
+              <div class="col-12 col-md-6">
+                <q-select
+                  v-model="teamForm.campeonato_grupo_id"
+                  dense
+                  outlined
+                  clearable
+                  emit-value
+                  map-options
+                  :options="grupoSelectOptions"
+                  option-value="id"
+                  option-label="nombre"
+                  label="Categoria (opcional)"
+                />
+              </div>
+              <div class="col-12 col-md-6">
+                <q-file v-model="teamForm.imagen" dense outlined label="Imagen equipo" accept="image/*" @update:model-value="onTeamImageChange" />
+              </div>
+              <div class="col-12 col-md-6">
+                <q-img :src="teamPreview || imageSrc(teamForm.imagen_actual || 'torneoImagen.jpg')" :ratio="1" />
+              </div>
+            </div>
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat no-caps label="Cancelar" @click="equipoDialog = false" />
+            <q-btn color="primary" no-caps :label="teamForm.id ? 'Actualizar' : 'Crear'" @click="guardarEquipo" />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
+
       <q-dialog v-model="jugadorDialog" persistent>
         <q-card style="width: 840px; max-width: 98vw">
           <q-card-section class="row items-center">
             <div class="text-subtitle1 text-weight-bold">Jugadores de {{ selectedEquipo?.nombre }}</div>
+            <q-chip dense color="indigo-2" text-color="indigo-10" class="q-ml-sm">
+              {{ (selectedEquipo?.jugadores || []).length }} jugadores
+            </q-chip>
             <q-space />
+            <q-btn color="primary" no-caps icon="person_add" label="Agregar jugador" @click="openJugadorFormDialog()" />
             <q-btn flat round dense icon="close" @click="jugadorDialog = false" />
+          </q-card-section>
+          <q-card-section>
+            <q-list bordered separator>
+              <q-item v-for="j in (selectedEquipo?.jugadores || [])" :key="j.id">
+                <q-item-section avatar class="q-pr-sm">
+                  <q-btn-dropdown label="Opciones" no-caps size="10px" dense color="primary">
+                    <q-list>
+                      <q-item clickable v-close-popup @click="openJugadorFormDialog(j)">
+                        <q-item-section avatar><q-icon name="edit" /></q-item-section>
+                        <q-item-section><q-item-label>Editar</q-item-label></q-item-section>
+                      </q-item>
+                      <q-item clickable v-close-popup @click="eliminarJugador(j)">
+                        <q-item-section avatar><q-icon name="delete" /></q-item-section>
+                        <q-item-section><q-item-label>Eliminar</q-item-label></q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-btn-dropdown>
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label class="row items-center q-gutter-sm">
+                    <q-avatar rounded size="30px"><q-img :src="imageSrc(j.foto || 'torneoImagen.jpg')" /></q-avatar>
+                    <span>{{ j.nombre }}</span>
+                  </q-item-label>
+                  <q-item-label caption>{{ j.posicion || '-' }} | #{{ j.numero_camiseta || '-' }} | {{ j.celular || '-' }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card-section>
+        </q-card>
+      </q-dialog>
+
+      <q-dialog v-model="jugadorFormDialog" persistent>
+        <q-card style="width: 780px; max-width: 95vw">
+          <q-card-section class="row items-center">
+            <div class="text-subtitle1 text-weight-bold">{{ jugadorForm.id ? 'Editar jugador' : 'Nuevo jugador' }}</div>
+            <q-space />
+            <q-btn flat round dense icon="close" @click="jugadorFormDialog = false" />
           </q-card-section>
           <q-card-section>
             <div class="row q-col-gutter-sm q-mb-md">
@@ -444,39 +504,12 @@
               <div class="col-12 col-md-3"><q-input v-model="jugadorForm.fecha_nacimiento" type="date" dense outlined label="Nacimiento" /></div>
               <div class="col-12 col-md-3"><q-input v-model="jugadorForm.documento" dense outlined label="Documento" /></div>
               <div class="col-12 col-md-3"><q-input v-model="jugadorForm.celular" dense outlined label="Celular" /></div>
-              <div class="col-12 col-md-4">
-                <q-file v-model="jugadorForm.foto" dense outlined label="Foto" accept="image/*" />
-              </div>
-              <div class="col-12 col-md-2">
-                <q-btn
-                  class="full-width"
-                  color="primary"
-                  no-caps
-                  :label="jugadorForm.id ? 'Actualizar' : 'Agregar'"
-                  @click="guardarJugador"
-                />
-              </div>
+              <div class="col-12 col-md-4"><q-file v-model="jugadorForm.foto" dense outlined label="Foto" accept="image/*" /></div>
             </div>
-
-            <q-list bordered separator>
-              <q-item v-for="j in (selectedEquipo?.jugadores || [])" :key="j.id">
-                <q-item-section avatar>
-                  <q-avatar rounded size="34px">
-                    <q-img :src="imageSrc(j.foto || 'torneoImagen.jpg')" />
-                  </q-avatar>
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label>{{ j.nombre }}</q-item-label>
-                  <q-item-label caption>
-                    {{ j.posicion || '-' }} | #{{ j.numero_camiseta || '-' }} | {{ j.celular || '-' }}
-                  </q-item-label>
-                </q-item-section>
-                <q-item-section side class="row q-gutter-xs items-center">
-                  <q-btn dense flat color="primary" icon="edit" @click="editarJugador(j)" />
-                  <q-btn dense flat color="negative" icon="delete" @click="eliminarJugador(j)" />
-                </q-item-section>
-              </q-item>
-            </q-list>
+            <div class="row justify-end">
+              <q-btn flat no-caps label="Cancelar" @click="jugadorFormDialog = false" />
+              <q-btn color="primary" no-caps :label="jugadorForm.id ? 'Actualizar' : 'Agregar'" @click="guardarJugador" />
+            </div>
           </q-card-section>
         </q-card>
       </q-dialog>
@@ -495,23 +528,27 @@ export default {
       tab: 'inicio',
       campeonato: {},
       deportes: [],
-      mensajes: [],
       grupos: [],
       equipos: [],
+      mensajes: [],
       newMessage: '',
       equiposDialog: false,
+      gruposDialog: false,
+      equipoDialog: false,
       jugadorDialog: false,
+      jugadorFormDialog: false,
       selectedEquipo: null,
-      grupoForm: {
-        nombre: ''
-      },
+      groupAutoCount: 3,
+      groupAutoCountOptions: [1, 2, 3, 4, 5, 6, 7, 8].map(v => ({ label: `${v}`, value: v })),
+      grupoForm: { id: null, nombre: '' },
       teamPreview: null,
       teamForm: {
         id: null,
         nombre: '',
         entrenador: '',
         campeonato_grupo_id: null,
-        imagen: null
+        imagen: null,
+        imagen_actual: 'torneoImagen.jpg'
       },
       jugadorForm: {
         id: null,
@@ -536,7 +573,21 @@ export default {
         fecha_fin: '',
         imagen: null,
         banner: null
-      }
+      },
+      equiposColumns: [
+        { name: 'imagen', label: '', field: 'imagen', align: 'left' },
+        { name: 'nombre', label: 'Equipo', field: 'nombre', align: 'left' },
+        { name: 'entrenador', label: 'Entrenador', field: 'entrenador', align: 'left' },
+        { name: 'grupo_nombre', label: 'Categoria', field: 'grupo_nombre', align: 'left' }
+      ],
+      equiposAdminColumns: [
+        { name: 'imagen', label: '', field: 'imagen', align: 'left' },
+        { name: 'actions', label: 'Opciones', align: 'left' },
+        { name: 'nombre', label: 'Equipo', field: 'nombre', align: 'left' },
+        { name: 'entrenador', label: 'Entrenador', field: 'entrenador', align: 'left' },
+        { name: 'categoria', label: 'Categoria', field: 'grupo_nombre', align: 'left' },
+        { name: 'jugadores_count', label: 'Jugadores', align: 'right' }
+      ]
     }
   },
   computed: {
@@ -548,6 +599,12 @@ export default {
     canModerate () {
       return this.canEdit
     },
+    esPadreCategorias () {
+      return this.campeonato?.tipo === 'categorias'
+    },
+    showParentBanner () {
+      return !!this.campeonato?.parent?.id && this.campeonato?.tipo === 'categoria_item'
+    },
     creadorNombre () {
       return this.campeonato?.user?.name || this.campeonato?.user?.username || 'Sin creador'
     },
@@ -556,6 +613,9 @@ export default {
       const digits = raw.replace(/\D/g, '')
       if (!digits) return ''
       return `https://wa.me/${digits}`
+    },
+    grupoSelectOptions () {
+      return this.grupos.map(g => ({ id: g.id, nombre: g.nombre }))
     }
   },
   mounted () {
@@ -563,18 +623,26 @@ export default {
     this.cargarCampeonato()
     this.cargarMensajes()
   },
+  watch: {
+    '$route.params.code' () {
+      this.cargarCampeonato()
+      this.cargarMensajes()
+      this.tab = 'inicio'
+      this.equiposDialog = false
+      this.gruposDialog = false
+      this.equipoDialog = false
+      this.jugadorDialog = false
+      this.jugadorFormDialog = false
+    }
+  },
   beforeUnmount () {
     if (this.configImagePreview) URL.revokeObjectURL(this.configImagePreview)
     if (this.configBannerPreview) URL.revokeObjectURL(this.configBannerPreview)
     if (this.teamPreview) URL.revokeObjectURL(this.teamPreview)
   },
   methods: {
-    imageSrc (name) {
-      return `${this.$url}../../images/${name || 'torneoImagen.jpg'}`
-    },
-    deporteNombre (key) {
-      return this.deportes.find(d => d.key === key)?.nombre || key
-    },
+    imageSrc (name) { return `${this.$url}../../images/${name || 'torneoImagen.jpg'}` },
+    deporteNombre (key) { return this.deportes.find(d => d.key === key)?.nombre || key },
     rangoFechas (inicio, fin) {
       if (!inicio && !fin) return 'Sin fechas definidas'
       if (inicio && fin) return `${inicio} - ${fin}`
@@ -586,44 +654,28 @@ export default {
     },
     tabIcon (name) {
       const active = this.tab === name
-      const base = {
-        inicio: 'home',
-        clasificacion: 'leaderboard',
-        ranking: 'emoji_events',
-        configuracion: 'settings'
-      }
-      const outline = {
-        inicio: 'o_home',
-        clasificacion: 'o_leaderboard',
-        ranking: 'o_emoji_events',
-        configuracion: 'o_settings'
-      }
+      const base = { inicio: 'home', clasificacion: 'leaderboard', ranking: 'emoji_events', configuracion: 'settings' }
+      const outline = { inicio: 'o_home', clasificacion: 'o_leaderboard', ranking: 'o_emoji_events', configuracion: 'o_settings' }
       return active ? outline[name] : base[name]
     },
-    tabClass (name) {
-      return {
-        'tab-active': this.tab === name,
-        [`tab-${name}`]: true
-      }
-    },
+    tabClass (name) { return { 'tab-active': this.tab === name, [`tab-${name}`]: true } },
     sharePublic () {
       const url = window.location.href
       if (navigator.share) {
-        navigator.share({
-          title: this.campeonato?.nombre || 'Torneo Ya',
-          text: `Mira este campeonato: ${this.campeonato?.nombre || ''}`,
-          url
-        }).catch(() => {})
+        navigator.share({ title: this.campeonato?.nombre || 'Torneo Ya', text: `Mira este campeonato: ${this.campeonato?.nombre || ''}`, url }).catch(() => {})
         return
       }
-      navigator.clipboard.writeText(url)
-        .then(() => this.$alert.success('Enlace copiado'))
-        .catch(() => this.$alert.error('No se pudo copiar el enlace'))
+      navigator.clipboard.writeText(url).then(() => this.$alert.success('Enlace copiado')).catch(() => this.$alert.error('No se pudo copiar el enlace'))
     },
     openWhatsApp () {
       if (!this.creatorWhatsappLink) return
       window.open(this.creatorWhatsappLink, '_blank')
     },
+    goToPadre () {
+      if (!this.campeonato?.parent?.codigo) return
+      this.$router.push(`/c/${this.campeonato.parent.codigo}`)
+    },
+    entrarCategoria (cat) { this.$router.push(`/c/${cat.codigo}`) },
     onConfigFileChange (field, file) {
       if (field === 'imagen') {
         if (this.configImagePreview) URL.revokeObjectURL(this.configImagePreview)
@@ -632,44 +684,22 @@ export default {
         if (this.configBannerPreview) URL.revokeObjectURL(this.configBannerPreview)
         this.configBannerPreview = file ? URL.createObjectURL(file) : null
       }
-
-      if (file && this.canEdit) {
-        this.saveConfig(true)
-      }
-    },
-    resetTeamForm () {
-      if (this.teamPreview) URL.revokeObjectURL(this.teamPreview)
-      this.teamPreview = null
-      this.teamForm = {
-        id: null,
-        nombre: '',
-        entrenador: '',
-        campeonato_grupo_id: null,
-        imagen: null
-      }
-    },
-    resetJugadorForm () {
-      this.jugadorForm = {
-        id: null,
-        nombre: '',
-        abreviado: '',
-        posicion: '',
-        numero_camiseta: '',
-        fecha_nacimiento: '',
-        documento: '',
-        celular: '',
-        foto: null
-      }
+      if (file && this.canEdit) this.saveConfig(true)
     },
     onTeamImageChange (file) {
       if (this.teamPreview) URL.revokeObjectURL(this.teamPreview)
       this.teamPreview = file ? URL.createObjectURL(file) : null
     },
-    cargarDeportes () {
-      this.$axios.get('public/deportes')
-        .then(r => { this.deportes = r.data || [] })
-        .catch(() => { this.deportes = [] })
+    resetGrupoForm () { this.grupoForm = { id: null, nombre: '' } },
+    resetTeamForm () {
+      if (this.teamPreview) URL.revokeObjectURL(this.teamPreview)
+      this.teamPreview = null
+      this.teamForm = { id: null, nombre: '', entrenador: '', campeonato_grupo_id: null, imagen: null, imagen_actual: 'torneoImagen.jpg' }
     },
+    resetJugadorForm () {
+      this.jugadorForm = { id: null, nombre: '', abreviado: '', posicion: '', numero_camiseta: '', fecha_nacimiento: '', documento: '', celular: '', foto: null }
+    },
+    cargarDeportes () { this.$axios.get('public/deportes').then(r => { this.deportes = r.data || [] }).catch(() => { this.deportes = [] }) },
     cargarCampeonato () {
       this.loading = true
       this.$axios.get(`public/campeonatos/${this.$route.params.code}`)
@@ -692,51 +722,78 @@ export default {
         .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo cargar el campeonato'))
         .finally(() => { this.loading = false })
     },
+    loadGestionData () {
+      return Promise.all([
+        this.$axios.get(`campeonatos/${this.campeonato.id}/grupos`)
+          .then(r => { this.grupos = r.data || [] })
+          .catch(() => { this.grupos = [] }),
+        this.$axios.get(`campeonatos/${this.campeonato.id}/equipos`)
+          .then(r => { this.equipos = r.data || [] })
+          .catch(() => { this.equipos = [] })
+      ])
+    },
     openEquiposDialog () {
       if (!this.canEdit) return
       this.equiposDialog = true
-      this.resetTeamForm()
-      this.grupoForm.nombre = ''
       this.loadGestionData()
     },
-    loadGestionData () {
-      this.$axios.get(`campeonatos/${this.campeonato.id}/grupos`)
-        .then(r => { this.grupos = r.data || [] })
-        .catch(() => { this.grupos = [] })
-      this.$axios.get(`campeonatos/${this.campeonato.id}/equipos`)
-        .then(r => { this.equipos = r.data || [] })
-        .catch(() => { this.equipos = [] })
+    openGruposDialog () {
+      this.gruposDialog = true
+      this.resetGrupoForm()
+    },
+    crearGruposAuto () {
+      this.$axios.post(`campeonatos/${this.campeonato.id}/grupos/defaults`, { cantidad: this.groupAutoCount })
+        .then(() => {
+          this.$alert.success('Grupos generados')
+          this.loadGestionData()
+          this.cargarCampeonato()
+        })
+        .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo generar categorias'))
     },
     guardarGrupo () {
       const nombre = (this.grupoForm.nombre || '').trim()
-      if (!nombre) {
-        this.$alert.error('Ingresa el nombre de la categoria/grupo')
-        return
-      }
-      this.$axios.post(`campeonatos/${this.campeonato.id}/grupos`, { nombre })
-        .then(() => {
-          this.grupoForm.nombre = ''
-          this.$alert.success('Categoria/grupo agregado')
-          this.loadGestionData()
-          this.cargarCampeonato()
-        })
-        .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo agregar categoria/grupo'))
+      if (!nombre) { this.$alert.error('Ingresa un nombre de categoria'); return }
+      const req = this.grupoForm.id
+        ? this.$axios.put(`campeonatos/${this.campeonato.id}/grupos/${this.grupoForm.id}`, { nombre })
+        : this.$axios.post(`campeonatos/${this.campeonato.id}/grupos`, { nombre })
+
+      req.then(() => {
+        this.$alert.success(this.grupoForm.id ? 'Categoria actualizada' : 'Categoria agregada')
+        this.resetGrupoForm()
+        this.loadGestionData()
+        this.cargarCampeonato()
+      }).catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo guardar categoria'))
     },
-    crearGruposDefault () {
-      this.$axios.post(`campeonatos/${this.campeonato.id}/grupos/defaults`)
-        .then(() => {
-          this.$alert.success('Categorias A/B/C aplicadas')
-          this.loadGestionData()
-          this.cargarCampeonato()
+    editarGrupo (g) { this.grupoForm = { id: g.id, nombre: g.nombre || '' } },
+    eliminarGrupo (g) {
+      this.$alert.dialog(`Eliminar categoria ${g.nombre}?`)
+        .onOk(() => {
+          this.$axios.delete(`campeonatos/${this.campeonato.id}/grupos/${g.id}`)
+            .then(() => {
+              this.$alert.success('Categoria eliminada')
+              this.loadGestionData()
+              this.cargarCampeonato()
+            })
+            .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo eliminar categoria'))
         })
-        .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo crear categorias por defecto'))
+    },
+    openEquipoDialog (eq = null) {
+      if (eq) {
+        this.teamForm = {
+          id: eq.id,
+          nombre: eq.nombre || '',
+          entrenador: eq.entrenador || '',
+          campeonato_grupo_id: eq.campeonato_grupo_id || null,
+          imagen: null,
+          imagen_actual: eq.imagen || 'torneoImagen.jpg'
+        }
+      } else {
+        this.resetTeamForm()
+      }
+      this.equipoDialog = true
     },
     guardarEquipo () {
-      if (!this.teamForm.nombre || !this.teamForm.nombre.trim()) {
-        this.$alert.error('Nombre de equipo requerido')
-        return
-      }
-
+      if (!this.teamForm.nombre || !this.teamForm.nombre.trim()) { this.$alert.error('Nombre del equipo requerido'); return }
       const fd = new FormData()
       fd.append('nombre', this.teamForm.nombre.trim())
       fd.append('entrenador', this.teamForm.entrenador || '')
@@ -744,30 +801,16 @@ export default {
       if (this.teamForm.imagen) fd.append('imagen', this.teamForm.imagen)
 
       const req = this.teamForm.id
-        ? this.$axios.post(`campeonatos/${this.campeonato.id}/equipos/${this.teamForm.id}?_method=PUT`, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
-        : this.$axios.post(`campeonatos/${this.campeonato.id}/equipos`, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
+        ? this.$axios.post(`campeonatos/${this.campeonato.id}/equipos/${this.teamForm.id}?_method=PUT`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+        : this.$axios.post(`campeonatos/${this.campeonato.id}/equipos`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
 
-      req
-        .then(() => {
-          this.$alert.success(this.teamForm.id ? 'Equipo actualizado' : 'Equipo creado')
-          this.resetTeamForm()
-          this.loadGestionData()
-          this.cargarCampeonato()
-        })
-        .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo guardar equipo'))
-    },
-    editarEquipo (eq) {
-      this.teamForm = {
-        id: eq.id,
-        nombre: eq.nombre || '',
-        entrenador: eq.entrenador || '',
-        campeonato_grupo_id: eq.campeonato_grupo_id || null,
-        imagen: null
-      }
+      req.then(() => {
+        this.$alert.success(this.teamForm.id ? 'Equipo actualizado' : 'Equipo creado')
+        this.equipoDialog = false
+        this.resetTeamForm()
+        this.loadGestionData()
+        this.cargarCampeonato()
+      }).catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo guardar equipo'))
     },
     eliminarEquipo (eq) {
       this.$alert.dialog(`Eliminar equipo ${eq.nombre}?`)
@@ -783,16 +826,20 @@ export default {
     },
     openJugadorDialog (eq) {
       this.selectedEquipo = eq
-      this.jugadorDialog = true
       this.resetJugadorForm()
+      this.jugadorDialog = true
+    },
+    openJugadorFormDialog (j = null) {
+      if (j) {
+        this.editarJugador(j)
+      } else {
+        this.resetJugadorForm()
+      }
+      this.jugadorFormDialog = true
     },
     guardarJugador () {
       if (!this.selectedEquipo?.id) return
-      if (!this.jugadorForm.nombre || !this.jugadorForm.nombre.trim()) {
-        this.$alert.error('Nombre del jugador requerido')
-        return
-      }
-
+      if (!this.jugadorForm.nombre || !this.jugadorForm.nombre.trim()) { this.$alert.error('Nombre del jugador requerido'); return }
       const fd = new FormData()
       fd.append('nombre', this.jugadorForm.nombre.trim())
       fd.append('abreviado', this.jugadorForm.abreviado || '')
@@ -804,23 +851,19 @@ export default {
       if (this.jugadorForm.foto) fd.append('foto', this.jugadorForm.foto)
 
       const req = this.jugadorForm.id
-        ? this.$axios.post(`campeonatos/${this.campeonato.id}/equipos/${this.selectedEquipo.id}/jugadores/${this.jugadorForm.id}?_method=PUT`, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
-        : this.$axios.post(`campeonatos/${this.campeonato.id}/equipos/${this.selectedEquipo.id}/jugadores`, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
+        ? this.$axios.post(`campeonatos/${this.campeonato.id}/equipos/${this.selectedEquipo.id}/jugadores/${this.jugadorForm.id}?_method=PUT`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+        : this.$axios.post(`campeonatos/${this.campeonato.id}/equipos/${this.selectedEquipo.id}/jugadores`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
 
-      req
-        .then(() => {
-          this.$alert.success(this.jugadorForm.id ? 'Jugador actualizado' : 'Jugador agregado')
-          this.resetJugadorForm()
-          this.loadGestionData()
+      req.then(() => {
+        this.$alert.success(this.jugadorForm.id ? 'Jugador actualizado' : 'Jugador agregado')
+        this.jugadorFormDialog = false
+        this.resetJugadorForm()
+        this.loadGestionData().then(() => {
           this.cargarCampeonato()
           const refreshed = this.equipos.find(e => e.id === this.selectedEquipo.id)
           if (refreshed) this.selectedEquipo = refreshed
         })
-        .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo guardar jugador'))
+      }).catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo guardar jugador'))
     },
     editarJugador (j) {
       this.jugadorForm = {
@@ -842,17 +885,17 @@ export default {
           this.$axios.delete(`campeonatos/${this.campeonato.id}/equipos/${this.selectedEquipo.id}/jugadores/${j.id}`)
             .then(() => {
               this.$alert.success('Jugador eliminado')
-              this.loadGestionData()
-              this.cargarCampeonato()
-              const refreshed = this.equipos.find(e => e.id === this.selectedEquipo.id)
-              if (refreshed) this.selectedEquipo = refreshed
+              this.loadGestionData().then(() => {
+                this.cargarCampeonato()
+                const refreshed = this.equipos.find(e => e.id === this.selectedEquipo.id)
+                if (refreshed) this.selectedEquipo = refreshed
+              })
             })
             .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo eliminar jugador'))
         })
     },
     saveConfig (silent = false) {
       if (!this.canEdit) return
-
       this.saving = true
       const fd = new FormData()
       fd.append('nombre', this.config.nombre || '')
@@ -864,9 +907,7 @@ export default {
       if (this.config.imagen) fd.append('imagen', this.config.imagen)
       if (this.config.banner) fd.append('banner', this.config.banner)
 
-      this.$axios.post(`campeonatos/${this.config.id}?_method=PUT`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
+      this.$axios.post(`campeonatos/${this.config.id}?_method=PUT`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
         .then(() => {
           if (!silent) this.$alert.success('Configuracion actualizada')
           this.cargarCampeonato()
@@ -880,14 +921,9 @@ export default {
         .catch(() => { this.mensajes = [] })
     },
     sendMessage () {
-      if (!this.newMessage || !this.newMessage.trim()) {
-        this.$alert.error('Escribe un mensaje')
-        return
-      }
+      if (!this.newMessage || !this.newMessage.trim()) { this.$alert.error('Escribe un mensaje'); return }
       this.sendingMessage = true
-      this.$axios.post(`public/campeonatos/${this.$route.params.code}/mensajes`, {
-        mensaje: this.newMessage.trim()
-      })
+      this.$axios.post(`public/campeonatos/${this.$route.params.code}/mensajes`, { mensaje: this.newMessage.trim() })
         .then(() => {
           this.newMessage = ''
           this.cargarMensajes()
@@ -905,88 +941,49 @@ export default {
 </script>
 
 <style scoped>
-.public-page {
-  background: linear-gradient(180deg, #0f172a 0%, #111827 45%, #0b1220 100%);
-}
-.hero {
-  min-height: 240px;
-  background-size: cover;
-  background-position: center;
-}
-.hero-overlay {
-  background: linear-gradient(100deg, rgba(2, 6, 23, 0.92), rgba(30, 41, 59, 0.8));
-  min-height: 240px;
-  display: flex;
-  align-items: center;
-}
-.hero-content {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 18px;
-}
-.hero-main {
-  min-width: 220px;
-}
-.hero-logo {
-  border: 2px solid rgba(255, 255, 255, 0.7);
-}
-.actions-col {
-  min-width: 180px;
-}
-.panel-shell {
-  border-radius: 14px;
-  overflow: hidden;
-  background: #111827;
-  border-color: rgba(148, 163, 184, 0.25);
-  color: #e5e7eb;
-}
-.pub-tabs {
-  padding: 10px 10px 6px;
-  background: #0b1220;
-}
-.pub-tabs :deep(.q-tab) {
-  margin-right: 8px;
-  border-radius: 10px;
-  color: #cbd5e1;
-  padding: 0 12px;
-}
-.pub-tabs :deep(.q-tab__label) {
-  text-transform: none;
-  letter-spacing: 0;
-}
-.tab-active {
-  color: #fff !important;
-  border: 1px solid rgba(255, 255, 255, 0.32);
-}
-.tab-inicio.tab-active {
-  background: rgba(37, 99, 235, 0.5);
-}
-.tab-clasificacion.tab-active {
-  background: rgba(14, 116, 144, 0.5);
-}
-.tab-ranking.tab-active {
-  background: rgba(180, 83, 9, 0.5);
-}
-.tab-configuracion.tab-active {
-  background: rgba(79, 70, 229, 0.5);
-}
-.panels {
-  background: #111827;
-}
-.bg-dark-card {
-  background: #0b1220;
-  border-color: rgba(148, 163, 184, 0.25);
-}
-.messages-list {
-  background: #0b1220;
-  border-color: rgba(148, 163, 184, 0.25);
-}
-.panel-light-blue {
-  background: rgba(30, 64, 175, 0.15);
-}
-.panel-light-amber {
-  background: rgba(180, 83, 9, 0.18);
+.public-page { background: linear-gradient(180deg, #0f172a 0%, #111827 45%, #0b1220 100%); }
+.public-page { min-height: 100vh; overflow-x: hidden; }
+.hero { min-height: 240px; background-size: cover; background-position: center; }
+.hero-overlay { background: linear-gradient(100deg, rgba(2, 6, 23, 0.92), rgba(30, 41, 59, 0.8)); min-height: 240px; display: flex; align-items: center; }
+.hero-content { width: 100%; display: flex; align-items: center; gap: 14px; padding: 18px; }
+.hero-main { min-width: 220px; }
+.hero-logo { border: 2px solid rgba(255, 255, 255, 0.7); }
+.actions-col { min-width: 180px; }
+.panel-shell { border-radius: 14px; overflow: hidden; background: #111827; border-color: rgba(148, 163, 184, 0.25); color: #e5e7eb; }
+.pub-tabs { padding: 10px 10px 6px; background: #0b1220; }
+.pub-tabs :deep(.q-tab) { margin-right: 8px; border-radius: 10px; color: #cbd5e1; padding: 0 12px; }
+.pub-tabs :deep(.q-tab__label) { text-transform: none; letter-spacing: 0; }
+.tab-active { color: #fff !important; border: 1px solid rgba(255, 255, 255, 0.32); }
+.tab-inicio.tab-active { background: rgba(37, 99, 235, 0.5); }
+.tab-clasificacion.tab-active { background: rgba(14, 116, 144, 0.5); }
+.tab-ranking.tab-active { background: rgba(180, 83, 9, 0.5); }
+.tab-configuracion.tab-active { background: rgba(79, 70, 229, 0.5); }
+.panels { background: #111827; }
+.bg-dark-card { background: #0b1220; border-color: rgba(148, 163, 184, 0.25); }
+.messages-list { background: #0b1220; border-color: rgba(148, 163, 184, 0.25); }
+.panel-light-blue { background: rgba(30, 64, 175, 0.15); }
+.panel-light-amber { background: rgba(180, 83, 9, 0.18); }
+@media (max-width: 700px) {
+  .hero-content {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+  }
+  .hero-main {
+    min-width: 0;
+    flex: 1 1 180px;
+  }
+  .actions-col {
+    min-width: 0;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .actions-col :deep(.q-btn) {
+    width: 100%;
+  }
+  .panel-shell {
+    margin: 8px !important;
+  }
 }
 </style>

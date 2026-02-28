@@ -9,6 +9,8 @@ class CampeonatoJugador extends Model
 {
     use HasFactory;
 
+    protected $table = 'campeonato_jugadores';
+
     protected $fillable = [
         'campeonato_equipo_id',
         'nombre',
@@ -26,4 +28,3 @@ class CampeonatoJugador extends Model
         return $this->belongsTo(CampeonatoEquipo::class, 'campeonato_equipo_id');
     }
 }
-

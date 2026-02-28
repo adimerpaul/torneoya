@@ -9,6 +9,8 @@ class CampeonatoGrupo extends Model
 {
     use HasFactory;
 
+    protected $table = 'campeonato_grupos';
+
     protected $fillable = [
         'campeonato_id',
         'nombre',
@@ -24,4 +26,3 @@ class CampeonatoGrupo extends Model
         return $this->hasMany(CampeonatoEquipo::class)->orderBy('nombre');
     }
 }
-
