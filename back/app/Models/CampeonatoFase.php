@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
+use OwenIt\Auditing\Auditable as AuditableTrait;
 
-class CampeonatoFase extends Model
+class CampeonatoFase extends Model implements AuditableContract
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes, AuditableTrait;
 
     protected $table = 'campeonato_fases';
 
@@ -38,4 +41,3 @@ class CampeonatoFase extends Model
         return $this->hasMany(CampeonatoPartido::class, 'campeonato_fase_id')->orderBy('id');
     }
 }
-

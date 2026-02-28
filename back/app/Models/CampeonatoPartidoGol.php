@@ -4,10 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
+use OwenIt\Auditing\Auditable as AuditableTrait;
 
-class CampeonatoPartidoGol extends Model
+class CampeonatoPartidoGol extends Model implements AuditableContract
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes, AuditableTrait;
 
     protected $table = 'campeonato_partido_goles';
 

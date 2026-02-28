@@ -194,25 +194,25 @@
 
         <q-separator :dark="!isLightMode" />
         <div class="match-list q-pa-xs">
-          <div class="match-list-grid">
+          <div class="row">
             <q-card
               v-for="p in activePartidos"
               :key="p.id"
               flat
               bordered
-              class="match-card"
+              class="match-card col-12"
               :class="{ editable: canEdit }"
               @dblclick="openEditPartido(p)"
             >
               <q-card-section class="q-pa-xs">
-              <div class="row items-center q-col-gutter-sm">
-                <div class="col-4 col-md-5 text-center">
+              <div class="row items-center">
+                <div class="col-4 col-md-4 text-center">
                   <q-avatar rounded size="36px" class="match-avatar">
                     <q-img :src="equipoLogo(p.local_equipo_id, p.local?.imagen)" />
                   </q-avatar>
                   <div class="text-caption q-mt-xs">{{ p.local?.nombre || 'Pendiente' }}</div>
                 </div>
-                <div class="col-4 col-md-2 text-center">
+                <div class="col-4 col-md-4 text-center">
                   <div class="match-score text-weight-bold">{{ formatScore(p) }}</div>
                   <div class="match-mid-card q-mt-xs" :class="estadoClass(p.estado)">
                     <div class="text-caption text-weight-medium">{{ estadoLabel(p.estado) }}</div>
@@ -220,7 +220,7 @@
                     <div class="text-caption">{{ formatPartidoSchedule(p.programado_at) }}</div>
                   </div>
                 </div>
-                <div class="col-4 col-md-5 text-center">
+                <div class="col-4 col-md-4 text-center">
                   <q-avatar rounded size="36px" class="match-avatar">
                     <q-img :src="equipoLogo(p.visita_equipo_id, p.visita?.imagen)" />
                   </q-avatar>

@@ -1,5 +1,5 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
+  <q-layout view="lhh Lpr lFf">
     <q-header :class="['public-header', isLightMode ? 'header-light text-dark' : 'header-dark text-white']" bordered>
       <q-toolbar>
         <div class="text-subtitle1 text-weight-medium header-title">Torneo Ya - Vive tus deportes</div>
