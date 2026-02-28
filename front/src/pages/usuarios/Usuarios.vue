@@ -474,8 +474,8 @@ export default {
         password: '',
         password_confirmation: ''
       }
-      this.showPasswordNew = false
-      this.showPasswordConfirm = false
+      this.showPasswordNew = true
+      this.showPasswordConfirm = true
       this.passwordDialog = true
     },
 

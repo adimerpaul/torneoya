@@ -37,12 +37,12 @@ export default defineRouter(function (/* { store, ssrContext } */) {
 
       // 🔐 Requiere permiso específico
       const requiredPerm = to.meta.perm
-      if (requiredPerm) {
-        if (!store.permissions.includes(requiredPerm)) {
-          // 🚫 No autorizado
-          return next('/') // o a una página 403
-        }
-      }
+      // if (requiredPerm) {
+      //   if (!store.permissions.includes(requiredPerm)) {
+      //     // 🚫 No autorizado
+      //     return next('/') // o a una página 403
+      //   }
+      // }
 
       return next()
     }
