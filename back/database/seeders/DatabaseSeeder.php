@@ -17,13 +17,15 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'name' => 'Administrador',
-            'username' => 'admin',
-            'email' => 'admin@torneoya.local',
-            'password' => '123456',
-            'role' => 'Admin',
-            'active' => true,
-        ]);
+        User::query()->updateOrCreate(
+            ['username' => 'admin'],
+            [
+                'name' => 'Administrador',
+                'email' => 'admin@torneoya.local',
+                'password' => '123456',
+                'role' => 'Admin',
+                'active' => true,
+            ]
+        );
     }
 }
