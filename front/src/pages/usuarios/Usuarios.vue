@@ -273,7 +273,7 @@ export default {
       loading: false,
       filter: '',
 
-      roles: ['Administrador', 'Soporte', 'Operador', 'Cliente'],
+      roles: ['Administrador', 'Usuario'],
 
       columns: [
         { name: 'actions', label: 'Acciones', align: 'center' },
@@ -332,7 +332,7 @@ export default {
         telefono_contacto_1: '',
         telefono_contacto_2: '',
         password: '',
-        role: 'Operador'
+        role: 'Usuario'
       }
       this.userDialog = true
     },
