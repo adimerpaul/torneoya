@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Campeonato;
+use App\Models\CampeonatoEquipo;
+use App\Models\CampeonatoGrupo;
+use App\Models\CampeonatoJugador;
 use App\Models\CampeonatoMensaje;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -277,6 +280,281 @@ class CampeonatoController extends Controller
         return response()->json(['message' => 'Categoria eliminada']);
     }
 
+    public function gruposIndex(Request $request, Campeonato $campeonato)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        return $campeonato->grupos()->get();
+    }
+
+    public function gruposStore(Request $request, Campeonato $campeonato)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:100',
+        ]);
+
+        $exists = CampeonatoGrupo::where('campeonato_id', $campeonato->id)
+            ->whereRaw('LOWER(nombre) = ?', [Str::lower(trim($validated['nombre']))])
+            ->exists();
+        if ($exists) {
+            return response()->json(['message' => 'Ya existe una categoria/grupo con ese nombre'], 422);
+        }
+
+        $grupo = CampeonatoGrupo::create([
+            'campeonato_id' => $campeonato->id,
+            'nombre' => trim($validated['nombre']),
+        ]);
+
+        return response()->json($grupo, 201);
+    }
+
+    public function gruposDefaultsStore(Request $request, Campeonato $campeonato)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        $created = [];
+        foreach (['A', 'B', 'C'] as $name) {
+            $exists = CampeonatoGrupo::where('campeonato_id', $campeonato->id)->where('nombre', $name)->exists();
+            if (!$exists) {
+                $created[] = CampeonatoGrupo::create([
+                    'campeonato_id' => $campeonato->id,
+                    'nombre' => $name,
+                ]);
+            }
+        }
+
+        return response()->json([
+            'message' => 'Categorias/grupos por defecto aplicados',
+            'created' => $created,
+        ]);
+    }
+
+    public function gruposUpdate(Request $request, Campeonato $campeonato, CampeonatoGrupo $grupo)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$grupo->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Categoria/grupo no pertenece al campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:100',
+        ]);
+
+        $exists = CampeonatoGrupo::where('campeonato_id', $campeonato->id)
+            ->where('id', '!=', $grupo->id)
+            ->whereRaw('LOWER(nombre) = ?', [Str::lower(trim($validated['nombre']))])
+            ->exists();
+        if ($exists) {
+            return response()->json(['message' => 'Ya existe una categoria/grupo con ese nombre'], 422);
+        }
+
+        $grupo->nombre = trim($validated['nombre']);
+        $grupo->save();
+        return response()->json($grupo);
+    }
+
+    public function gruposDestroy(Request $request, Campeonato $campeonato, CampeonatoGrupo $grupo)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$grupo->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Categoria/grupo no pertenece al campeonato'], 422);
+        }
+
+        $grupo->delete();
+        return response()->json(['message' => 'Categoria/grupo eliminado']);
+    }
+
+    public function equiposIndex(Request $request, Campeonato $campeonato)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        return CampeonatoEquipo::where('campeonato_id', $campeonato->id)
+            ->with(['grupo', 'jugadores'])
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    public function equiposStore(Request $request, Campeonato $campeonato)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:160',
+            'entrenador' => 'nullable|string|max:160',
+            'campeonato_grupo_id' => 'nullable|integer|exists:campeonato_grupos,id',
+            'imagen' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+        ]);
+
+        $groupId = $validated['campeonato_grupo_id'] ?? null;
+        if ($groupId) {
+            $belongs = CampeonatoGrupo::where('id', $groupId)->where('campeonato_id', $campeonato->id)->exists();
+            if (!$belongs) {
+                return response()->json(['message' => 'La categoria/grupo no pertenece al campeonato'], 422);
+            }
+        }
+
+        $equipo = CampeonatoEquipo::create([
+            'campeonato_id' => $campeonato->id,
+            'campeonato_grupo_id' => $groupId,
+            'nombre' => trim($validated['nombre']),
+            'entrenador' => $validated['entrenador'] ?? null,
+            'imagen' => null,
+        ]);
+
+        if ($request->hasFile('imagen')) {
+            $equipo->imagen = $this->saveImage($request->file('imagen'), 'eq');
+            $equipo->save();
+        }
+
+        return response()->json($equipo->load(['grupo', 'jugadores']), 201);
+    }
+
+    public function equiposUpdate(Request $request, Campeonato $campeonato, CampeonatoEquipo $equipo)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$equipo->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Equipo no pertenece al campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:160',
+            'entrenador' => 'nullable|string|max:160',
+            'campeonato_grupo_id' => 'nullable|integer|exists:campeonato_grupos,id',
+            'imagen' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+        ]);
+
+        $groupId = $validated['campeonato_grupo_id'] ?? null;
+        if ($groupId) {
+            $belongs = CampeonatoGrupo::where('id', $groupId)->where('campeonato_id', $campeonato->id)->exists();
+            if (!$belongs) {
+                return response()->json(['message' => 'La categoria/grupo no pertenece al campeonato'], 422);
+            }
+        }
+
+        $equipo->nombre = trim($validated['nombre']);
+        $equipo->entrenador = $validated['entrenador'] ?? null;
+        $equipo->campeonato_grupo_id = $groupId;
+        if ($request->hasFile('imagen')) {
+            $equipo->imagen = $this->saveImage($request->file('imagen'), 'eq');
+        }
+        $equipo->save();
+
+        return response()->json($equipo->load(['grupo', 'jugadores']));
+    }
+
+    public function equiposDestroy(Request $request, Campeonato $campeonato, CampeonatoEquipo $equipo)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$equipo->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Equipo no pertenece al campeonato'], 422);
+        }
+
+        $equipo->delete();
+        return response()->json(['message' => 'Equipo eliminado']);
+    }
+
+    public function jugadoresStore(Request $request, Campeonato $campeonato, CampeonatoEquipo $equipo)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$equipo->campeonato_id !== (int)$campeonato->id) {
+            return response()->json(['message' => 'Equipo no pertenece al campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:160',
+            'abreviado' => 'nullable|string|max:40',
+            'posicion' => 'nullable|string|max:80',
+            'numero_camiseta' => 'nullable|string|max:20',
+            'fecha_nacimiento' => 'nullable|date',
+            'documento' => 'nullable|string|max:60',
+            'celular' => 'nullable|string|max:30',
+            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+        ]);
+
+        $jugador = CampeonatoJugador::create([
+            'campeonato_equipo_id' => $equipo->id,
+            'nombre' => trim($validated['nombre']),
+            'abreviado' => $validated['abreviado'] ?? null,
+            'posicion' => $validated['posicion'] ?? null,
+            'numero_camiseta' => $validated['numero_camiseta'] ?? null,
+            'fecha_nacimiento' => $validated['fecha_nacimiento'] ?? null,
+            'documento' => $validated['documento'] ?? null,
+            'celular' => $validated['celular'] ?? null,
+            'foto' => null,
+        ]);
+
+        if ($request->hasFile('foto')) {
+            $jugador->foto = $this->saveImage($request->file('foto'), 'jug');
+            $jugador->save();
+        }
+
+        return response()->json($jugador, 201);
+    }
+
+    public function jugadoresUpdate(Request $request, Campeonato $campeonato, CampeonatoEquipo $equipo, CampeonatoJugador $jugador)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$equipo->campeonato_id !== (int)$campeonato->id || (int)$jugador->campeonato_equipo_id !== (int)$equipo->id) {
+            return response()->json(['message' => 'Jugador no pertenece al equipo/campeonato'], 422);
+        }
+
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:160',
+            'abreviado' => 'nullable|string|max:40',
+            'posicion' => 'nullable|string|max:80',
+            'numero_camiseta' => 'nullable|string|max:20',
+            'fecha_nacimiento' => 'nullable|date',
+            'documento' => 'nullable|string|max:60',
+            'celular' => 'nullable|string|max:30',
+            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+        ]);
+
+        $jugador->fill($validated);
+        if ($request->hasFile('foto')) {
+            $jugador->foto = $this->saveImage($request->file('foto'), 'jug');
+        }
+        $jugador->save();
+
+        return response()->json($jugador);
+    }
+
+    public function jugadoresDestroy(Request $request, Campeonato $campeonato, CampeonatoEquipo $equipo, CampeonatoJugador $jugador)
+    {
+        if (!$this->canAccess($request, $campeonato)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+        if ((int)$equipo->campeonato_id !== (int)$campeonato->id || (int)$jugador->campeonato_equipo_id !== (int)$equipo->id) {
+            return response()->json(['message' => 'Jugador no pertenece al equipo/campeonato'], 422);
+        }
+
+        $jugador->delete();
+        return response()->json(['message' => 'Jugador eliminado']);
+    }
+
     public function publicMensajes(Request $request, string $code)
     {
         $campeonato = Campeonato::where('codigo', strtoupper($code))->first();
@@ -336,7 +614,13 @@ class CampeonatoController extends Controller
     public function publicShowByCode(string $code)
     {
         $campeonato = Campeonato::where('codigo', strtoupper($code))
-            ->with(['categorias', 'user:id,name,username,avatar,telefono_contacto_1'])
+            ->with([
+                'categorias',
+                'grupos',
+                'equipos.jugadores',
+                'equipos.grupo',
+                'user:id,name,username,avatar,telefono_contacto_1',
+            ])
             ->first();
 
         if (!$campeonato) {

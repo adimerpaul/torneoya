@@ -45,6 +45,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/campeonatos/{campeonato}/categorias', [CampeonatoController::class, 'categoriaStore']);
     Route::put('/campeonatos/{campeonato}/categorias/{categoria}', [CampeonatoController::class, 'categoriaUpdate']);
     Route::delete('/campeonatos/{campeonato}/categorias/{categoria}', [CampeonatoController::class, 'categoriaDestroy']);
+
+    Route::get('/campeonatos/{campeonato}/grupos', [CampeonatoController::class, 'gruposIndex']);
+    Route::post('/campeonatos/{campeonato}/grupos', [CampeonatoController::class, 'gruposStore']);
+    Route::post('/campeonatos/{campeonato}/grupos/defaults', [CampeonatoController::class, 'gruposDefaultsStore']);
+    Route::put('/campeonatos/{campeonato}/grupos/{grupo}', [CampeonatoController::class, 'gruposUpdate']);
+    Route::delete('/campeonatos/{campeonato}/grupos/{grupo}', [CampeonatoController::class, 'gruposDestroy']);
+
+    Route::get('/campeonatos/{campeonato}/equipos', [CampeonatoController::class, 'equiposIndex']);
+    Route::post('/campeonatos/{campeonato}/equipos', [CampeonatoController::class, 'equiposStore']);
+    Route::put('/campeonatos/{campeonato}/equipos/{equipo}', [CampeonatoController::class, 'equiposUpdate']);
+    Route::delete('/campeonatos/{campeonato}/equipos/{equipo}', [CampeonatoController::class, 'equiposDestroy']);
+    Route::post('/campeonatos/{campeonato}/equipos/{equipo}/jugadores', [CampeonatoController::class, 'jugadoresStore']);
+    Route::put('/campeonatos/{campeonato}/equipos/{equipo}/jugadores/{jugador}', [CampeonatoController::class, 'jugadoresUpdate']);
+    Route::delete('/campeonatos/{campeonato}/equipos/{equipo}/jugadores/{jugador}', [CampeonatoController::class, 'jugadoresDestroy']);
+
     Route::patch('/campeonatos/{campeonato}/mensajes/{mensaje}/visible', [CampeonatoController::class, 'mensajeToggleVisible']);
 
     // Mis graderías (usuario logueado)

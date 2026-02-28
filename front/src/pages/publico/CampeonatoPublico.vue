@@ -117,6 +117,46 @@
             </div>
           </div>
 
+          <div class="row items-center q-mb-sm">
+            <div class="text-subtitle1 text-weight-medium text-green-3">Equipos</div>
+            <q-space />
+            <q-btn
+              v-if="canEdit"
+              color="green-7"
+              no-caps
+              icon="groups"
+              label="Gestionar equipos"
+              @click="openEquiposDialog"
+            />
+          </div>
+
+          <div v-if="!equipos.length" class="text-grey-5 q-mb-md">
+            Aun no hay equipos registrados.
+          </div>
+
+          <div v-else class="row q-col-gutter-sm q-mb-md">
+            <div v-for="eq in equipos" :key="eq.id" class="col-12 col-md-6">
+              <q-card flat bordered class="bg-dark-card text-white">
+                <q-card-section class="row items-center q-gutter-sm">
+                  <q-avatar rounded size="44px">
+                    <q-img :src="imageSrc(eq.imagen || 'torneoImagen.jpg')" />
+                  </q-avatar>
+                  <div class="col">
+                    <div class="text-weight-bold">{{ eq.nombre }}</div>
+                    <div class="text-caption text-blue-2">Entrenador: {{ eq.entrenador || 'Sin definir' }}</div>
+                  </div>
+                  <q-chip v-if="eq.grupo_nombre" dense color="teal-2" text-color="teal-10">
+                    {{ eq.grupo_nombre }}
+                  </q-chip>
+                </q-card-section>
+                <q-separator dark />
+                <q-card-section class="text-caption text-grey-4">
+                  Jugadores: {{ (eq.jugadores || []).length }}
+                </q-card-section>
+              </q-card>
+            </div>
+          </div>
+
           <div class="text-subtitle1 text-weight-medium q-mb-sm text-deep-orange-3">Mensajes</div>
 
           <q-list bordered separator class="rounded-borders messages-list q-mb-md">
@@ -144,19 +184,7 @@
 
           <q-card flat bordered class="bg-dark-card">
             <q-card-section class="row q-col-gutter-sm">
-              <div class="col-12 col-md-3">
-                <q-input
-                  v-model="guestName"
-                  dense
-                  outlined
-                  dark
-                  color="teal-3"
-                  label="Tu nombre (opcional)"
-                  :disable="$store?.isLogged"
-                  hint="Si estas logueado usamos tu usuario"
-                />
-              </div>
-              <div class="col-12 col-md-7">
+              <div class="col-12 col-md-10">
                 <q-input
                   v-model="newMessage"
                   type="textarea"
@@ -305,6 +333,153 @@
           </q-form>
         </q-tab-panel>
       </q-tab-panels>
+
+      <q-dialog v-model="equiposDialog" persistent>
+        <q-card style="width: 980px; max-width: 98vw" class="bg-grey-1">
+          <q-card-section class="row items-center">
+            <div class="text-subtitle1 text-weight-bold">Equipos y categorias</div>
+            <q-space />
+            <q-btn flat round dense icon="close" @click="equiposDialog = false" />
+          </q-card-section>
+
+          <q-card-section>
+            <div class="row q-col-gutter-sm q-mb-md">
+              <div class="col-12 col-md-3">
+                <q-input v-model="grupoForm.nombre" dense outlined label="Categoria/Grupo" />
+              </div>
+              <div class="col-12 col-md-9 row q-gutter-sm items-center">
+                <q-btn color="indigo" no-caps label="Agregar categoria" icon="add" @click="guardarGrupo" />
+                <q-btn color="teal" no-caps label="Crear A/B/C" icon="auto_awesome" @click="crearGruposDefault" />
+              </div>
+            </div>
+
+            <div class="row q-gutter-xs q-mb-md">
+              <q-chip
+                v-for="g in grupos"
+                :key="g.id"
+                clickable
+                color="teal-2"
+                text-color="teal-10"
+                :label="g.nombre"
+                :outline="teamForm.campeonato_grupo_id !== g.id"
+                @click="teamForm.campeonato_grupo_id = g.id"
+              />
+              <q-chip
+                clickable
+                color="grey-4"
+                text-color="black"
+                :outline="!!teamForm.campeonato_grupo_id"
+                label="Sin categoria"
+                @click="teamForm.campeonato_grupo_id = null"
+              />
+            </div>
+
+            <q-separator class="q-my-md" />
+
+            <div class="row q-col-gutter-sm q-mb-md">
+              <div class="col-12 col-md-4">
+                <q-input v-model="teamForm.nombre" dense outlined label="Nombre del equipo" />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-input v-model="teamForm.entrenador" dense outlined label="Entrenador" />
+              </div>
+              <div class="col-12 col-md-3">
+                <q-file
+                  v-model="teamForm.imagen"
+                  dense
+                  outlined
+                  label="Imagen equipo"
+                  accept="image/*"
+                  @update:model-value="onTeamImageChange"
+                />
+              </div>
+              <div class="col-12 col-md-2">
+                <q-btn
+                  class="full-width"
+                  color="primary"
+                  no-caps
+                  :label="teamForm.id ? 'Actualizar' : 'Agregar'"
+                  @click="guardarEquipo"
+                />
+              </div>
+            </div>
+
+            <q-list bordered separator>
+              <q-item v-for="eq in equipos" :key="eq.id">
+                <q-item-section avatar>
+                  <q-avatar rounded size="34px">
+                    <q-img :src="imageSrc(eq.imagen || 'torneoImagen.jpg')" />
+                  </q-avatar>
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ eq.nombre }}</q-item-label>
+                  <q-item-label caption>
+                    {{ eq.entrenador || 'Sin entrenador' }} | {{ eq.grupo_nombre || 'Sin categoria' }}
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side class="row q-gutter-xs items-center">
+                  <q-btn dense flat color="primary" icon="edit" @click="editarEquipo(eq)" />
+                  <q-btn dense flat color="deep-purple" icon="person_add" @click="openJugadorDialog(eq)" />
+                  <q-btn dense flat color="negative" icon="delete" @click="eliminarEquipo(eq)" />
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card-section>
+        </q-card>
+      </q-dialog>
+
+      <q-dialog v-model="jugadorDialog" persistent>
+        <q-card style="width: 840px; max-width: 98vw">
+          <q-card-section class="row items-center">
+            <div class="text-subtitle1 text-weight-bold">Jugadores de {{ selectedEquipo?.nombre }}</div>
+            <q-space />
+            <q-btn flat round dense icon="close" @click="jugadorDialog = false" />
+          </q-card-section>
+          <q-card-section>
+            <div class="row q-col-gutter-sm q-mb-md">
+              <div class="col-12 col-md-3"><q-input v-model="jugadorForm.nombre" dense outlined label="Nombre" /></div>
+              <div class="col-12 col-md-2"><q-input v-model="jugadorForm.abreviado" dense outlined label="Abreviado" /></div>
+              <div class="col-12 col-md-2"><q-input v-model="jugadorForm.posicion" dense outlined label="Posicion" /></div>
+              <div class="col-12 col-md-2"><q-input v-model="jugadorForm.numero_camiseta" dense outlined label="Nro camiseta" /></div>
+              <div class="col-12 col-md-3"><q-input v-model="jugadorForm.fecha_nacimiento" type="date" dense outlined label="Nacimiento" /></div>
+              <div class="col-12 col-md-3"><q-input v-model="jugadorForm.documento" dense outlined label="Documento" /></div>
+              <div class="col-12 col-md-3"><q-input v-model="jugadorForm.celular" dense outlined label="Celular" /></div>
+              <div class="col-12 col-md-4">
+                <q-file v-model="jugadorForm.foto" dense outlined label="Foto" accept="image/*" />
+              </div>
+              <div class="col-12 col-md-2">
+                <q-btn
+                  class="full-width"
+                  color="primary"
+                  no-caps
+                  :label="jugadorForm.id ? 'Actualizar' : 'Agregar'"
+                  @click="guardarJugador"
+                />
+              </div>
+            </div>
+
+            <q-list bordered separator>
+              <q-item v-for="j in (selectedEquipo?.jugadores || [])" :key="j.id">
+                <q-item-section avatar>
+                  <q-avatar rounded size="34px">
+                    <q-img :src="imageSrc(j.foto || 'torneoImagen.jpg')" />
+                  </q-avatar>
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ j.nombre }}</q-item-label>
+                  <q-item-label caption>
+                    {{ j.posicion || '-' }} | #{{ j.numero_camiseta || '-' }} | {{ j.celular || '-' }}
+                  </q-item-label>
+                </q-item-section>
+                <q-item-section side class="row q-gutter-xs items-center">
+                  <q-btn dense flat color="primary" icon="edit" @click="editarJugador(j)" />
+                  <q-btn dense flat color="negative" icon="delete" @click="eliminarJugador(j)" />
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-card-section>
+        </q-card>
+      </q-dialog>
     </q-card>
   </q-page>
 </template>
@@ -321,8 +496,34 @@ export default {
       campeonato: {},
       deportes: [],
       mensajes: [],
+      grupos: [],
+      equipos: [],
       newMessage: '',
-      guestName: '',
+      equiposDialog: false,
+      jugadorDialog: false,
+      selectedEquipo: null,
+      grupoForm: {
+        nombre: ''
+      },
+      teamPreview: null,
+      teamForm: {
+        id: null,
+        nombre: '',
+        entrenador: '',
+        campeonato_grupo_id: null,
+        imagen: null
+      },
+      jugadorForm: {
+        id: null,
+        nombre: '',
+        abreviado: '',
+        posicion: '',
+        numero_camiseta: '',
+        fecha_nacimiento: '',
+        documento: '',
+        celular: '',
+        foto: null
+      },
       configImagePreview: null,
       configBannerPreview: null,
       config: {
@@ -365,6 +566,7 @@ export default {
   beforeUnmount () {
     if (this.configImagePreview) URL.revokeObjectURL(this.configImagePreview)
     if (this.configBannerPreview) URL.revokeObjectURL(this.configBannerPreview)
+    if (this.teamPreview) URL.revokeObjectURL(this.teamPreview)
   },
   methods: {
     imageSrc (name) {
@@ -435,6 +637,34 @@ export default {
         this.saveConfig(true)
       }
     },
+    resetTeamForm () {
+      if (this.teamPreview) URL.revokeObjectURL(this.teamPreview)
+      this.teamPreview = null
+      this.teamForm = {
+        id: null,
+        nombre: '',
+        entrenador: '',
+        campeonato_grupo_id: null,
+        imagen: null
+      }
+    },
+    resetJugadorForm () {
+      this.jugadorForm = {
+        id: null,
+        nombre: '',
+        abreviado: '',
+        posicion: '',
+        numero_camiseta: '',
+        fecha_nacimiento: '',
+        documento: '',
+        celular: '',
+        foto: null
+      }
+    },
+    onTeamImageChange (file) {
+      if (this.teamPreview) URL.revokeObjectURL(this.teamPreview)
+      this.teamPreview = file ? URL.createObjectURL(file) : null
+    },
     cargarDeportes () {
       this.$axios.get('public/deportes')
         .then(r => { this.deportes = r.data || [] })
@@ -445,6 +675,8 @@ export default {
       this.$axios.get(`public/campeonatos/${this.$route.params.code}`)
         .then(r => {
           this.campeonato = r.data || {}
+          this.grupos = this.campeonato.grupos || []
+          this.equipos = this.campeonato.equipos || []
           this.config = {
             id: this.campeonato.id,
             nombre: this.campeonato.nombre || '',
@@ -459,6 +691,164 @@ export default {
         })
         .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo cargar el campeonato'))
         .finally(() => { this.loading = false })
+    },
+    openEquiposDialog () {
+      if (!this.canEdit) return
+      this.equiposDialog = true
+      this.resetTeamForm()
+      this.grupoForm.nombre = ''
+      this.loadGestionData()
+    },
+    loadGestionData () {
+      this.$axios.get(`campeonatos/${this.campeonato.id}/grupos`)
+        .then(r => { this.grupos = r.data || [] })
+        .catch(() => { this.grupos = [] })
+      this.$axios.get(`campeonatos/${this.campeonato.id}/equipos`)
+        .then(r => { this.equipos = r.data || [] })
+        .catch(() => { this.equipos = [] })
+    },
+    guardarGrupo () {
+      const nombre = (this.grupoForm.nombre || '').trim()
+      if (!nombre) {
+        this.$alert.error('Ingresa el nombre de la categoria/grupo')
+        return
+      }
+      this.$axios.post(`campeonatos/${this.campeonato.id}/grupos`, { nombre })
+        .then(() => {
+          this.grupoForm.nombre = ''
+          this.$alert.success('Categoria/grupo agregado')
+          this.loadGestionData()
+          this.cargarCampeonato()
+        })
+        .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo agregar categoria/grupo'))
+    },
+    crearGruposDefault () {
+      this.$axios.post(`campeonatos/${this.campeonato.id}/grupos/defaults`)
+        .then(() => {
+          this.$alert.success('Categorias A/B/C aplicadas')
+          this.loadGestionData()
+          this.cargarCampeonato()
+        })
+        .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo crear categorias por defecto'))
+    },
+    guardarEquipo () {
+      if (!this.teamForm.nombre || !this.teamForm.nombre.trim()) {
+        this.$alert.error('Nombre de equipo requerido')
+        return
+      }
+
+      const fd = new FormData()
+      fd.append('nombre', this.teamForm.nombre.trim())
+      fd.append('entrenador', this.teamForm.entrenador || '')
+      if (this.teamForm.campeonato_grupo_id) fd.append('campeonato_grupo_id', this.teamForm.campeonato_grupo_id)
+      if (this.teamForm.imagen) fd.append('imagen', this.teamForm.imagen)
+
+      const req = this.teamForm.id
+        ? this.$axios.post(`campeonatos/${this.campeonato.id}/equipos/${this.teamForm.id}?_method=PUT`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        : this.$axios.post(`campeonatos/${this.campeonato.id}/equipos`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+
+      req
+        .then(() => {
+          this.$alert.success(this.teamForm.id ? 'Equipo actualizado' : 'Equipo creado')
+          this.resetTeamForm()
+          this.loadGestionData()
+          this.cargarCampeonato()
+        })
+        .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo guardar equipo'))
+    },
+    editarEquipo (eq) {
+      this.teamForm = {
+        id: eq.id,
+        nombre: eq.nombre || '',
+        entrenador: eq.entrenador || '',
+        campeonato_grupo_id: eq.campeonato_grupo_id || null,
+        imagen: null
+      }
+    },
+    eliminarEquipo (eq) {
+      this.$alert.dialog(`Eliminar equipo ${eq.nombre}?`)
+        .onOk(() => {
+          this.$axios.delete(`campeonatos/${this.campeonato.id}/equipos/${eq.id}`)
+            .then(() => {
+              this.$alert.success('Equipo eliminado')
+              this.loadGestionData()
+              this.cargarCampeonato()
+            })
+            .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo eliminar equipo'))
+        })
+    },
+    openJugadorDialog (eq) {
+      this.selectedEquipo = eq
+      this.jugadorDialog = true
+      this.resetJugadorForm()
+    },
+    guardarJugador () {
+      if (!this.selectedEquipo?.id) return
+      if (!this.jugadorForm.nombre || !this.jugadorForm.nombre.trim()) {
+        this.$alert.error('Nombre del jugador requerido')
+        return
+      }
+
+      const fd = new FormData()
+      fd.append('nombre', this.jugadorForm.nombre.trim())
+      fd.append('abreviado', this.jugadorForm.abreviado || '')
+      fd.append('posicion', this.jugadorForm.posicion || '')
+      fd.append('numero_camiseta', this.jugadorForm.numero_camiseta || '')
+      fd.append('fecha_nacimiento', this.jugadorForm.fecha_nacimiento || '')
+      fd.append('documento', this.jugadorForm.documento || '')
+      fd.append('celular', this.jugadorForm.celular || '')
+      if (this.jugadorForm.foto) fd.append('foto', this.jugadorForm.foto)
+
+      const req = this.jugadorForm.id
+        ? this.$axios.post(`campeonatos/${this.campeonato.id}/equipos/${this.selectedEquipo.id}/jugadores/${this.jugadorForm.id}?_method=PUT`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        : this.$axios.post(`campeonatos/${this.campeonato.id}/equipos/${this.selectedEquipo.id}/jugadores`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+
+      req
+        .then(() => {
+          this.$alert.success(this.jugadorForm.id ? 'Jugador actualizado' : 'Jugador agregado')
+          this.resetJugadorForm()
+          this.loadGestionData()
+          this.cargarCampeonato()
+          const refreshed = this.equipos.find(e => e.id === this.selectedEquipo.id)
+          if (refreshed) this.selectedEquipo = refreshed
+        })
+        .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo guardar jugador'))
+    },
+    editarJugador (j) {
+      this.jugadorForm = {
+        id: j.id,
+        nombre: j.nombre || '',
+        abreviado: j.abreviado || '',
+        posicion: j.posicion || '',
+        numero_camiseta: j.numero_camiseta || '',
+        fecha_nacimiento: j.fecha_nacimiento || '',
+        documento: j.documento || '',
+        celular: j.celular || '',
+        foto: null
+      }
+    },
+    eliminarJugador (j) {
+      if (!this.selectedEquipo?.id) return
+      this.$alert.dialog(`Eliminar jugador ${j.nombre}?`)
+        .onOk(() => {
+          this.$axios.delete(`campeonatos/${this.campeonato.id}/equipos/${this.selectedEquipo.id}/jugadores/${j.id}`)
+            .then(() => {
+              this.$alert.success('Jugador eliminado')
+              this.loadGestionData()
+              this.cargarCampeonato()
+              const refreshed = this.equipos.find(e => e.id === this.selectedEquipo.id)
+              if (refreshed) this.selectedEquipo = refreshed
+            })
+            .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo eliminar jugador'))
+        })
     },
     saveConfig (silent = false) {
       if (!this.canEdit) return
@@ -496,12 +886,10 @@ export default {
       }
       this.sendingMessage = true
       this.$axios.post(`public/campeonatos/${this.$route.params.code}/mensajes`, {
-        mensaje: this.newMessage.trim(),
-        autor_nombre: (this.guestName || '').trim() || undefined
+        mensaje: this.newMessage.trim()
       })
         .then(() => {
           this.newMessage = ''
-          this.guestName = ''
           this.cargarMensajes()
         })
         .catch(e => this.$alert.error(e.response?.data?.message || 'No se pudo enviar mensaje'))

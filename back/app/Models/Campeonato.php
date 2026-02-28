@@ -47,6 +47,16 @@ class Campeonato extends Model implements AuditableContract
         return $this->hasMany(CampeonatoMensaje::class)->latest();
     }
 
+    public function grupos()
+    {
+        return $this->hasMany(CampeonatoGrupo::class)->orderBy('nombre');
+    }
+
+    public function equipos()
+    {
+        return $this->hasMany(CampeonatoEquipo::class)->with(['grupo', 'jugadores'])->orderBy('nombre');
+    }
+
     public function getDeporteIconoAttribute(): ?string
     {
         return Campeonato::deportesCatalogo()[$this->deporte]['icono'] ?? 'emoji_events';
