@@ -118,7 +118,8 @@ export default {
       return [
         { title: 'Principal', icon: 'home', link: '/', perm: 'Principal', always: true },
         { title: 'Usuarios', icon: 'people', link: '/usuarios', perm: 'Usuarios' },
-        { title: 'Auditorías', icon: 'fact_check', link: '/auditorias', perm: 'Auditorias' }
+        // { path: 'campeonatos', component: () => import('pages/campeonatos/CampeonatosPage.vue'), meta: { requiresAuth: true } },
+        { title: 'Campeonatos', icon: 'emoji_events', link: '/campeonatos', perm: 'Campeonatos' },
       ]
     }
   },

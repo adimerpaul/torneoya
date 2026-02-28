@@ -60,4 +60,9 @@ class User extends Authenticatable implements AuditableContract
     {
         return $value ?: 'avatar.png';
     }
+
+    public function campeonatos(): HasMany
+    {
+        return $this->hasMany(Campeonato::class);
+    }
 }
