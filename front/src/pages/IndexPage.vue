@@ -7,14 +7,9 @@
       </q-card-section>
       <q-separator />
       <q-card-section>
-        <pre class="q-ma-none">{{ auth.user }}</pre>
       </q-card-section>
     </q-card>
   </q-page>
 </template>
-
-<script setup>
-import { useAuthStore } from 'src/stores/example-store'
-
-const auth = useAuthStore()
+<script>
 </script>

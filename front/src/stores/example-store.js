@@ -1,33 +1,27 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
 
-export const useAuthStore = defineStore('auth', {
+export const useCounterStore = defineStore('counter', {
   state: () => ({
-    token: localStorage.getItem('tokenTorneoYa') || null,
-    user: (() => {
-      const raw = localStorage.getItem('userTorneoYa')
-      return raw ? JSON.parse(raw) : null
-    })()
+    counter: 0,
+    isLogged: !!localStorage.getItem('tokenTorneoya'),
+    user: {},
+    permissions: [],
+    reservas: [],
+    socketReservas: null,
+    env: {},
   }),
 
+  getters: {
+    doubleCount: (state) => state.counter * 2
+  },
+
   actions: {
-    isLoggedIn() {
-      return !!this.token
-    },
-    setSession({ token, user }) {
-      this.token = token
-      this.user = user
-      localStorage.setItem('tokenTorneoYa', token)
-      localStorage.setItem('userTorneoYa', JSON.stringify(user))
-    },
-    clearSession() {
-      this.token = null
-      this.user = null
-      localStorage.removeItem('tokenTorneoYa')
-      localStorage.removeItem('userTorneoYa')
+    increment() {
+      this.counter++
     }
   }
 })
 
 if (import.meta.hot) {
-  import.meta.hot.accept(acceptHMRUpdate(useAuthStore, import.meta.hot))
+  import.meta.hot.accept(acceptHMRUpdate(useCounterStore, import.meta.hot))
 }

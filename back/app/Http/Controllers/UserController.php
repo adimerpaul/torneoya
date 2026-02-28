@@ -77,11 +77,17 @@ class UserController extends Controller
         );
     }
 
+    public function show(User $user): JsonResponse
+    {
+        return response()->json($user);
+    }
+
     public function store(StoreUserRequest $request): JsonResponse
     {
         $data = $request->validated();
         $data['role'] = $data['role'] ?? 'Usuario';
         $data['active'] = $data['active'] ?? true;
+        $data['avatar'] = $data['avatar'] ?? 'avatar.png';
 
         $user = User::query()->create($data);
 
@@ -101,6 +107,9 @@ class UserController extends Controller
     {
         $oldValues = $user->toArray();
         $data = $request->validated();
+        if (array_key_exists('avatar', $data) && empty($data['avatar'])) {
+            $data['avatar'] = 'avatar.png';
+        }
         $user->update($data);
 
         $this->storeAudit(

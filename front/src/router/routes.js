@@ -2,9 +2,10 @@ const routes = [
   {
     path: '/',
     component: () => import('layouts/MainLayout.vue'),
-    meta: { requiresAuth: true },
     children: [
-      { path: '', component: () => import('pages/IndexPage.vue') }
+      { path: '', component: () => import('pages/IndexPage.vue'), meta: { requiresAuth: true } },
+      { path: 'usuarios', component: () => import('pages/usuarios/UsuariosPage.vue'), meta: { requiresAuth: true } },
+      { path: 'auditorias', component: () => import('pages/auditorias/AuditoriasPage.vue'), meta: { requiresAuth: true } },
     ]
   },
   {

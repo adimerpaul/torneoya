@@ -43,6 +43,7 @@ class UpdateUserRequest extends FormRequest
             'password' => ['sometimes', 'nullable', 'string', 'min:6'],
             'role' => ['sometimes', 'nullable', 'string', 'max:100'],
             'active' => ['sometimes', 'boolean'],
+            'avatar' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];
     }
 }

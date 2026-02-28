@@ -22,9 +22,10 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Administrador',
                 'email' => 'admin@torneoya.local',
-                'password' => '123456',
+                'password' => 'admin123Admin',
                 'role' => 'Admin',
                 'active' => true,
+                'avatar' => 'avatar.png',
             ]
         );
     }

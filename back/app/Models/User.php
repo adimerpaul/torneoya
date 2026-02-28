@@ -27,6 +27,7 @@ class User extends Authenticatable
         'password',
         'role',
         'active',
+        'avatar',
     ];
 
     /**
@@ -52,6 +53,11 @@ class User extends Authenticatable
             'password' => 'hashed',
             'active' => 'boolean',
         ];
+    }
+
+    public function getAvatarAttribute(?string $value): string
+    {
+        return $value ?: 'avatar.png';
     }
 
     public function audits(): HasMany
