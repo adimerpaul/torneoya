@@ -8,16 +8,17 @@ use App\Http\Controllers\AsientoController;
 
 Route::post('/login', [App\Http\Controllers\UserController::class, 'login']);
 Route::post('/register', [App\Http\Controllers\UserController::class, 'register']);
-Route::get('/public/graderias/{code}', [GraderiaController::class, 'publicShowByCode']);
+//Route::get('/public/graderias/{code}', [GraderiaController::class, 'publicShowByCode']);
 Route::get('/public/campeonatos/{code}', [CampeonatoController::class, 'publicShowByCode']);
 Route::get('/public/deportes', [CampeonatoController::class, 'deportes']);
-Route::get('/public/campeonatos/{code}/mensajes', [CampeonatoController::class, 'publicMensajes']);
-Route::post('/public/campeonatos/{code}/mensajes', [CampeonatoController::class, 'publicMensajeStore']);
-Route::get('/public/campeonatos/{code}/clasificacion', [CampeonatoController::class, 'clasificacionPublic']);
-Route::get('/public/campeonatos/{code}/ranking', [CampeonatoController::class, 'rankingPublic']);
-Route::get('/public/campeonatos/{code}/reportes/pdf', [CampeonatoController::class, 'reportePdfPublic']);
+
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/public/campeonatos/{code}/mensajes', [CampeonatoController::class, 'publicMensajes']);
+    Route::post('/public/campeonatos/{code}/mensajes', [CampeonatoController::class, 'publicMensajeStore']);
+    Route::get('/public/campeonatos/{code}/clasificacion', [CampeonatoController::class, 'clasificacionPublic']);
+    Route::get('/public/campeonatos/{code}/ranking', [CampeonatoController::class, 'rankingPublic']);
+    Route::get('/public/campeonatos/{code}/reportes/pdf', [CampeonatoController::class, 'reportePdfPublic']);
     Route::post('/me/password', [App\Http\Controllers\UserController::class, 'changeMyPassword']);
     Route::post('/me/password/update', [App\Http\Controllers\UserController::class, 'changeMyPasswordDialog']);
 
